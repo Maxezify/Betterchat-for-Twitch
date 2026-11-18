@@ -1,0 +1,71 @@
+{
+  "version": "15.25.0",
+  "statuts": {
+    "corrigé": "Corrigé dans le script, vérifié par le banc quand un test existe.",
+    "partiel": "Corrigé en partie ; la note dit ce qui reste et pourquoi.",
+    "reporté": "Volontairement non traité dans cette version ; la note dit pourquoi.",
+    "conservé": "Comportement gardé tel quel, par choix.",
+    "action": "Demande une action de ta part, hors du code.",
+    "positif": "Point fort relevé par l'audit, rien à faire."
+  },
+  "items": [
+    { "id": "B1", "severite": "Élevé", "categorie": "Bug", "titre": "log() plante sur une citation sans title", "statut": "corrigé", "tests": ["B1", "B1b", "B1c"], "note": "Argument de log évalué à la demande ; <p> sans title accepté seulement si Twitch/7TV annoncent une réponse ; chaque ligne traitée isolément." },
+    { "id": "B2", "severite": "Élevé", "categorie": "Bug", "titre": "Deux lignes collées dans tintNotice au lieu de start", "statut": "corrigé", "tests": ["B2"], "note": "Le nettoyage (glissement, tampon) est fait au détachement du conteneur." },
+    { "id": "B3", "severite": "Élevé", "categorie": "Bug", "titre": "Gifts successifs du même donateur mal regroupés", "statut": "corrigé", "tests": ["B3"], "note": "Un gift rattaché quitte la fenêtre de rattrapage." },
+    { "id": "B4", "severite": "Élevé", "categorie": "Bug", "titre": "Onglet masqué : tampon sans limite, lignes perdues", "statut": "corrigé", "tests": ["B4"], "note": "Pas de rendu différé onglet masqué, traitement par minuterie, plafond de 300 lignes." },
+    { "id": "B5", "severite": "Moyen", "categorie": "Bug", "titre": "Traduction et détection appliquées au texte de l'abonné", "statut": "corrigé", "tests": ["B5", "B5b"], "note": "Le message joint est exclu de la traduction, de l'analyse et de la recherche de pseudos." },
+    { "id": "B6", "severite": "Élevé", "categorie": "Bug", "titre": "Le masquage d'un gift peut viser la racine du chat", "statut": "corrigé", "tests": ["B6"], "note": "On masque l'enfant direct de la racine, jamais au-delà." },
+    { "id": "B7", "severite": "Faible", "categorie": "Bug", "titre": ":not(:has()) n'exclut pas le message joint", "statut": "corrigé", "tests": ["B7"], "note": "Sélecteurs :not(X):not(X *) ; commentaires mis d'accord." },
+    { "id": "B8", "severite": "Faible", "categorie": "Bug", "titre": "messageBatchMs > 1 image : rattrapage ralenti", "statut": "corrigé", "tests": ["B8"], "note": "Calcul sur le temps écoulé depuis le dernier relâchement." },
+    { "id": "B9", "severite": "Faible", "categorie": "Bug", "titre": "vitesseContenu jamais remis à zéro", "statut": "corrigé", "tests": [], "note": "Remise à zéro au démarrage et après 2 s sans glissement. Vérifié à la lecture : pas de test automatisé fiable." },
+
+    { "id": "R1", "severite": "Moyen", "categorie": "Robustesse", "titre": "Tout changement d'URL détruit l'état", "statut": "corrigé", "tests": ["R1", "R1b"], "note": "Remise à zéro seulement au changement de chaîne ; gifts fermés proprement." },
+    { "id": "R2", "severite": "Élevé", "categorie": "Robustesse", "titre": "Conteneur remplacé sans changement d'URL non détecté", "statut": "corrigé", "tests": ["R2", "R2b"], "note": "Surveillance chaque seconde (isConnected), reconnexion automatique, diagnostic averti." },
+    { "id": "R3", "severite": "Faible", "categorie": "Robustesse", "titre": "Attribut d'étiquette 7TV non observé", "statut": "corrigé", "tests": ["R3"], "note": "" },
+    { "id": "R4", "severite": "Moyen", "categorie": "Robustesse", "titre": "Couleurs blanches en dur : thème clair illisible", "statut": "corrigé", "tests": ["R4"], "note": "Couleurs dérivées de la couleur du texte (color-mix avec currentColor)." },
+    { "id": "R5", "severite": "Faible", "categorie": "Robustesse", "titre": "Nœuds React/Vue modifiés en place", "statut": "reporté", "tests": [], "note": "Demande de revoir la façon d'insérer (envelopper plutôt que remplacer). Aucun incident observé : à reprendre si React ou 7TV signalent des erreurs." },
+    { "id": "R6", "severite": "Faible", "categorie": "Robustesse", "titre": "Analyse des couleurs limitée à rgb()/rgba()", "statut": "corrigé", "tests": ["R6"], "note": "Lecteur unique (regex, sinon canevas) ; alpha nul = transparent." },
+    { "id": "R7", "severite": "Faible", "categorie": "Robustesse", "titre": "Index des pseudos : clés incohérentes, couleur figée", "statut": "corrigé", "tests": ["R7a", "R7b", "R7c"], "note": "Double clé login + nom affiché, couleur mise à jour, couleur jointe réservée à l'auteur." },
+    { "id": "R8", "severite": "Faible", "categorie": "Robustesse", "titre": "Repli structurel du scroller jamais réévalué", "statut": "corrigé", "tests": ["R8"], "note": "Choix provisoire réévalué tant que l'élément ne défile pas." },
+    { "id": "R9", "severite": "Moyen", "categorie": "Robustesse", "titre": "File plafonnée avec abandon silencieux", "statut": "corrigé", "tests": ["R9", "B4"], "note": "Au-delà de 120 nœuds, reprise complète de la racine au lieu d'un abandon." },
+    { "id": "R10", "severite": "Faible", "categorie": "Robustesse", "titre": "Aucune garde contre une double instance", "statut": "corrigé", "tests": ["R10"], "note": "" },
+
+    { "id": "P1", "severite": "Moyen", "categorie": "Performance", "titre": "Nos classList.add relançaient getComputedStyle", "statut": "corrigé", "tests": ["P1"], "note": "Classes ajoutées seulement si absentes ; nos propres classes ignorées par l'observateur." },
+    { "id": "P2", "severite": "Moyen", "categorie": "Performance", "titre": "Liste des destinataires en O(n²)", "statut": "corrigé", "tests": ["P2", "P3"], "note": "Ajout incrémental." },
+    { "id": "P3", "severite": "Moyen", "categorie": "Performance", "titre": "Pipeline complet pour chaque nœud ajouté", "statut": "corrigé", "tests": ["P3"], "note": "Nos nœuds ignorés, lot dédoublonné, une seule requête par sous-arbre." },
+    { "id": "P4", "severite": "Faible", "categorie": "Performance", "titre": "Lectures/écritures entrelacées, deux boucles rAF", "statut": "reporté", "tests": [], "note": "Restructuration lourde : à mesurer d'abord sur Twitch (DevTools > Performance). P1 divise déjà par deux les recalculs de style." },
+    { "id": "P5", "severite": "Faible", "categorie": "Performance", "titre": "Index en FIFO plutôt qu'en LRU", "statut": "corrigé", "tests": ["P5"], "note": "Emotes et pseudos." },
+    { "id": "P6", "severite": "Info", "categorie": "Performance", "titre": "Micro-optimisations", "statut": "partiel", "tests": [], "note": "Appliquées : test+replace, keys().next(), accent en tableau, fermeture hissée, barreNative réutilisé. Non appliquée : trim() des jetons (gain nul)." },
+
+    { "id": "M1", "severite": "Faible", "categorie": "Code mort", "titre": "RE.totalGifts, RE.subscribed, RE.raid", "statut": "corrigé", "tests": ["M1"], "note": "" },
+    { "id": "M2", "severite": "Faible", "categorie": "Code mort", "titre": "const L inutilisée", "statut": "corrigé", "tests": ["M2", "LINT"], "note": "" },
+    { "id": "M3", "severite": "Faible", "categorie": "Code mort", "titre": "tier, entry.tier, entry.ts", "statut": "corrigé", "tests": ["M3"], "note": "" },
+    { "id": "M4", "severite": "Faible", "categorie": "Code mort", "titre": "Ligne redondante de render()", "statut": "corrigé", "tests": ["M4"], "note": "" },
+    { "id": "M5", "severite": "Faible", "categorie": "Code mort", "titre": "selfCheckDone", "statut": "corrigé", "tests": ["M5"], "note": "" },
+    { "id": "M6", "severite": "Faible", "categorie": "Code mort", "titre": "diag.verifieA", "statut": "corrigé", "tests": ["M6"], "note": "" },
+    { "id": "M7", "severite": "Faible", "categorie": "Code mort", "titre": "Sélecteur .seventv-chat-list", "statut": "corrigé", "tests": ["M7"], "note": "" },
+    { "id": "M8", "severite": "Faible", "categorie": "Code mort", "titre": "Alternative de sélecteur redondante", "statut": "corrigé", "tests": ["M8"], "note": "" },
+    { "id": "M9", "severite": "Faible", "categorie": "Code mort", "titre": "Gardes impossibles (try/catch, ?., nodeType)", "statut": "corrigé", "tests": ["M9"], "note": "" },
+    { "id": "M10", "severite": "Info", "categorie": "Code mort", "titre": "Replis var() jamais utilisés", "statut": "corrigé", "tests": ["M10"], "note": "" },
+
+    { "id": "Q1", "severite": "Faible", "categorie": "Maintenabilité", "titre": "Commentaires déplacés ou périmés", "statut": "corrigé", "tests": ["Q1"], "note": "" },
+    { "id": "Q2", "severite": "Faible", "categorie": "Maintenabilité", "titre": "Utilisations avant définition", "statut": "corrigé", "tests": ["LINT"], "note": "État regroupé en tête ; quatre fonctions de la boucle déclarées (hissées)." },
+    { "id": "Q3", "severite": "Faible", "categorie": "Maintenabilité", "titre": "Masquage de variable, let au lieu de const", "statut": "corrigé", "tests": ["LINT"], "note": "" },
+    { "id": "Q4", "severite": "Faible", "categorie": "Maintenabilité", "titre": "CSS dupliqué et nombres magiques", "statut": "partiel", "tests": ["Q4"], "note": "Bloc d'icône fusionné, constantes nommées. Le bloc padding de la ligne imbriquée reste à part : son sélecteur diffère." },
+    { "id": "Q5", "severite": "Faible", "categorie": "Maintenabilité", "titre": "Version dupliquée", "statut": "corrigé", "tests": ["Q5"], "note": "GM_info.script.version, repli vérifié par le banc." },
+    { "id": "Q6", "severite": "Info", "categorie": "Maintenabilité", "titre": "Organisation du fichier", "statut": "partiel", "tests": [], "note": "CHANGELOG.md créé. Découpage du fichier et noms des identifiants inchangés : beaucoup de diff pour aucun gain fonctionnel." },
+    { "id": "Q7", "severite": "Info", "categorie": "Maintenabilité", "titre": "Fins de ligne CRLF", "statut": "conservé", "tests": [], "note": "Conservées et protégées par .gitattributes." },
+
+    { "id": "D1", "severite": "Faible", "categorie": "Debug", "titre": "log() évalue ses arguments hors debug", "statut": "corrigé", "tests": ["B1", "B1b"], "note": "" },
+    { "id": "D2", "severite": "Faible", "categorie": "Debug", "titre": "Auto-diagnostic incomplet", "statut": "corrigé", "tests": ["D2", "R2b"], "note": "Contrôle isConnected, compteurs uniques, message à jour." },
+    { "id": "D3", "severite": "Faible", "categorie": "Debug", "titre": "whyFontSize() ignore les règles groupées", "statut": "corrigé", "tests": ["D3"], "note": "" },
+    { "id": "D4", "severite": "Faible", "categorie": "Debug", "titre": "reload() ne retraite pas les notices", "statut": "corrigé", "tests": ["D4"], "note": "Teinte, couleur des pseudos et traduction réappliquées." },
+
+    { "id": "S1", "severite": "Info", "categorie": "Sécurité", "titre": "Aucun innerHTML, contenu inséré en texte", "statut": "positif", "tests": [], "note": "" },
+    { "id": "S2", "severite": "Moyen", "categorie": "Sécurité", "titre": "Canal de mise à jour sur l'ancien dépôt", "statut": "corrigé", "tests": ["S2"], "note": "@updateURL sur prod/BetterTwitchChat.user.js de ce dépôt ; @name et @namespace inchangés. Effectif à la fusion dans prod." },
+    { "id": "S3", "severite": "Moyen", "categorie": "Sécurité", "titre": "Protéger la branche prod", "statut": "corrigé", "tests": [], "note": "Ruleset « prod » actif (vérifié par l'API GitHub le 18/11) : pull request obligatoire (0 approbation), vérification « banc » requise et à jour, suppression et force-push bloqués, aucune exception." },
+    { "id": "S4", "severite": "Info", "categorie": "Sécurité", "titre": "window.__BTC exposé", "statut": "conservé", "tests": [], "note": "Outil de diagnostic documenté dans le README." },
+    { "id": "S5", "severite": "Info", "categorie": "Sécurité", "titre": "@noframes absent", "statut": "conservé", "tests": [], "note": "Le script continue de tourner dans les iframes www.twitch.tv (chat intégré). À trancher." },
+    { "id": "S6", "severite": "Info", "categorie": "Sécurité", "titre": "@icon via le service de Google", "statut": "conservé", "tests": [], "note": "" }
+  ]
+}
