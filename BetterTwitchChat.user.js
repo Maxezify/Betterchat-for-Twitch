@@ -1,23 +1,24 @@
 // ==UserScript==
 // @name         BetterTwitchChat (+ 7TV)
 // @namespace    https://github.com/Maxezify/BetterTwitchChat-with-7tv
-// @version      15.24.0
+// @version      15.25.0
 // @description  Réponses lisibles en entier (emotes incluses), notices sub/prime/gift compactées, regroupement des gifts multiples. Compatible chat Twitch natif + nouvelle extension 7TV.
 // @author       Maxezify
 // @match        https://www.twitch.tv/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.tv
 // @grant        none
 // @run-at       document-idle
-// @updateURL    https://raw.githubusercontent.com/Maxezify/BetterTwitchChat-with-7tv/claude/twitch-chat-7tv-userscript-1hh5y8/BetterTwitchChat.js
-// @downloadURL  https://raw.githubusercontent.com/Maxezify/BetterTwitchChat-with-7tv/claude/twitch-chat-7tv-userscript-1hh5y8/BetterTwitchChat.js
+// @updateURL    https://raw.githubusercontent.com/Maxezify/Betterchat-for-Twitch/prod/BetterTwitchChat.user.js
+// @downloadURL  https://raw.githubusercontent.com/Maxezify/Betterchat-for-Twitch/prod/BetterTwitchChat.user.js
 // ==/UserScript==
 
 /*
  * v15 — réécriture complète.
  *
- * Mise à jour automatique : @updateURL / @downloadURL pointent sur la branche de
- * travail, seule à porter la v15. Si elle est un jour fusionnée dans main, il faut
- * remplacer le segment de branche par `main` dans les deux URLs de l'en-tête.
+ * Mise à jour automatique : @updateURL / @downloadURL pointent sur la branche `prod` du
+ * dépôt Maxezify/Betterchat-for-Twitch. @name et @namespace gardent volontairement leurs
+ * valeurs d'origine, ancien dépôt compris : le gestionnaire de scripts identifie un script
+ * par ce couple, et le changer installerait une seconde copie au lieu de mettre à jour.
  *
  * La nouvelle extension 7TV (ID lppmekppnliemjclknbagdhoocikieoi) ne remplace plus le
  * moteur de rendu du chat : elle décore le chat natif de Twitch. Toutes les classes
@@ -46,7 +47,20 @@
 (function () {
     'use strict';
 
-    const VERSION = '15.24.0';
+    // Version lue dans l'en-tête quand le gestionnaire l'expose : une seule source à tenir
+    // à jour. La valeur écrite ici ne sert que de repli et doit rester égale à @version
+    // (le banc de test le vérifie).
+    const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version)
+        || '15.25.0';
+
+    // Une seule instance par page. Deux gestionnaires de scripts, ou deux installations
+    // sous des noms différents, feraient tourner deux observateurs et deux boucles de
+    // défilement, chacune prenant les écritures de l'autre pour un geste de lecture.
+    if (window.__btcInstance) {
+        console.warn(`[BetterTwitchChat] v${window.__btcInstance} déjà active : seconde instance ignorée.`);
+        return;
+    }
+    window.__btcInstance = VERSION;
 
     // =========================================================================
     // CONFIGURATION — tout ce qui se règle sans toucher au reste du fichier
@@ -60,12 +74,13 @@
             //   'inline' la citation est juste la première ligne du message, sans filet
             //   'card'   la citation est un bloc détaché avec son propre fond
             style: 'rail',
-            // Fond du message qui répond à quelqu'un. Volontairement exprimé en blanc
-            // semi-transparent : il s'ajoute au fond existant, donc il reste visible
-            // par-dessus les couleurs de highlight 7TV (modo, VIP, first-time…).
-            lineTint: 'hsla(0, 0%, 100%, 0.08)',
-            // Fond du bloc de citation lui-même, un cran plus clair.
-            blockTint: 'hsla(0, 0%, 100%, 0.06)',
+            // Fond du message qui répond à quelqu'un. Volontairement exprimé comme une
+            // fraction de la couleur du texte : il s'ajoute au fond existant, donc il reste
+            // visible par-dessus les couleurs de highlight 7TV (modo, VIP, first-time…), et
+            // il suit le thème — clair sur fond sombre, sombre sur fond clair.
+            lineTint: 'color-mix(in srgb, currentColor 8%, transparent)',
+            // Fond du bloc de citation lui-même (présentation 'card'), un cran plus discret.
+            blockTint: 'color-mix(in srgb, currentColor 6%, transparent)',
             // Couleur du texte cité : gris, plus sombre que le texte des messages.
             color: '#8f8f9a',
             // Taille de la citation, relative au texte du chat.
@@ -94,7 +109,9 @@
             // déclaré en `.25rem`, donc sa valeur en pixels dépend de la police racine ;
             // 2 px est le réglage retenu à l'œil, à ajuster si le sien paraît différent.
             accentWidth: '2px',
-            accentFallback: 'hsla(0, 0%, 100%, 0.4)'
+            // Filet des réponses que ni Twitch ni 7TV ne colorent : la couleur du texte,
+            // atténuée, pour rester visible sur les deux thèmes.
+            accentFallback: 'color-mix(in srgb, currentColor 40%, transparent)'
         },
 
         // --- Notices sub / prime / gift / raid ---
@@ -127,9 +144,6 @@
             giftLookbehindMs: 15000
         },
 
-        // --- Divers ---
-        // Trait de séparation entre les messages. Désactivé : 7TV en pose déjà un
-        // (classe seventv-chat-lines-separator-twitch sur <html>), le nôtre doublait.
         // --- Rendu progressif (équivalents des réglages 7TV du même nom) ---
         // Délai minimal entre deux messages affichés. Twitch insère par paquets : dans
         // un chat rapide, plusieurs lignes surgissent d'un coup et le regard décroche.
@@ -163,6 +177,9 @@
         // chez eux. Mettre null pour ne pas en réserver.
         emotePaddingTop: '5px',
 
+        // --- Divers ---
+        // Trait de séparation entre les messages. Désactivé : 7TV en pose déjà un
+        // (classe seventv-chat-lines-separator-twitch sur <html>), le nôtre doublait.
         separators: false,
         // Retire l'étiquette que 7TV accroche aux messages relevés par une règle
         // « Custom Highlights » (l'emoji ou le texte donné à la règle). On enlève
@@ -189,8 +206,7 @@
     const SEL = {
         chatRoot: [
             '[data-test-selector="chat-scrollable-area__message-container"]',
-            '.chat-scrollable-area__message-container',
-            '.seventv-chat-list'
+            '.chat-scrollable-area__message-container'
         ],
         line: '.chat-line__message,[data-a-target="chat-line-message"]',
         lineContainer: '.chat-line__message-container',
@@ -216,13 +232,33 @@
             + '.chat-line__message--emote-button',
         // Élément qui porte réellement le défilement du chat. 7TV stylise lui-même sa
         // scrollbar sur ce sélecteur, c'est donc une ancre déclarée, pas devinée.
-        scroller: '.scrollable-area[data-a-target="chat-scroller"],[data-a-target="chat-scroller"]'
+        scroller: '[data-a-target="chat-scroller"]'
     };
 
-    const log = (...args) => { if (CONFIG.debug) console.log('[BTC]', ...args); };
+    // Les arguments d'une fonction sont évalués avant l'appel, même quand le journal est
+    // coupé. Un argument coûteux ou fragile se passe donc sous forme de fonction : il n'est
+    // évalué que si le journal est actif.
+    const log = (...args) => {
+        if (CONFIG.debug) console.log('[BTC]', ...args.map((a) => (typeof a === 'function' ? a() : a)));
+    };
 
-    // Compteurs alimentés par le traitement, lus par l'auto-diagnostic.
-    const diag = { lignes: 0, reponses: 0, reponsesRatees: 0, notices: 0, verifieA: 0 };
+    // Compteurs alimentés par le traitement, lus par l'auto-diagnostic. Chaque élément n'est
+    // compté qu'une fois : un second passage (reload, rattrapage) ne les gonfle pas.
+    const diag = { lignes: 0, reponses: 0, reponsesRatees: 0, notices: 0 };
+    let dejaComptes = { lignes: new WeakSet(), reponses: new WeakSet(), reponsesRatees: new WeakSet() };
+    const compter = (cle, el) => {
+        if (dejaComptes[cle].has(el)) return;
+        dejaComptes[cle].add(el);
+        diag[cle]++;
+    };
+
+    // =========================================================================
+    // ÉTAT PARTAGÉ — déclaré avant les fonctions qui le lisent
+    // =========================================================================
+    let chatRoot = null;
+    // Éléments créés par ce script. L'observateur les ignore : il n'y a rien à y chercher,
+    // et les retraiter coûtait des milliers de requêtes pendant un gift multiple.
+    const nosNoeuds = new WeakSet();
 
     // =========================================================================
     // TEXTES — reconnaissance FR + EN
@@ -237,11 +273,7 @@
         // « offre 50 abonnements de niveau 1 à la communauté » / « is gifting 50 Tier 1 Subs »
         massGift: /(?:offre|a\s+offert)\s+([\d\s .,]+?)\s*abonnements?\b|is\s+gifting\s+([\d,]+)\s*Tier/i,
         // « a offert un abonnement de niveau 1 à X » / « Gifted a Tier 1 Sub to X »
-        singleGift: /a\s+offert\s+un\s+abonnement|gifted\s+a\s+.*\bsub\s+to\b/i,
-        tier: /(?:niveau|Tier)\s*(\d)/i,
-        totalGifts: /(?:d[ée]j[àa]\s+offert|total\s+of)\s+([\d\s .,]+?)\s*(?:abonnements?|Subs?)/i,
-        subscribed: /s'est\s+abonn|subscribed\s+(?:with|at|for)/i,
-        raid: /a\s+lanc[ée]\s+un\s+raid|raided\s+with\s+a\s+viewer\s+count/i
+        singleGift: /a\s+offert\s+un\s+abonnement|gifted\s+a\s+.*\bsub\s+to\b/i
     };
 
     // 7TV laisse ses notices système en anglais quelle que soit la langue de Twitch.
@@ -277,6 +309,76 @@
         if (!raw) return 0;
         const n = parseInt(raw.replace(/[\s .,]/g, ''), 10);
         return Number.isFinite(n) ? n : 0;
+    };
+
+    /**
+     * N'écrit la classe que si elle manque. classList.add d'une classe déjà présente émet
+     * quand même un enregistrement de mutation, que notre propre observateur recevait.
+     */
+    const ajouterClasse = (el, nom) => {
+        if (!el.classList.contains(nom)) el.classList.add(nom);
+    };
+
+    /** Crée un élément et le déclare comme nôtre (voir nosNoeuds). */
+    const creer = (tag, className) => {
+        const el = document.createElement(tag);
+        el.className = className;
+        nosNoeuds.add(el);
+        return el;
+    };
+
+    /** Exécute un traitement sans qu'une exception arrête ceux qui suivent. */
+    const protege = (fn, el) => {
+        try { fn(el); } catch (e) { console.error('[BTC] échec du traitement', e, el); }
+    };
+
+    // Lecture de couleur. getComputedStyle rend les couleurs « classiques » en rgb()/rgba(),
+    // mais garde leur syntaxe aux autres : color(srgb …) pour un color-mix(), oklch(…)…
+    // Celles-là passent par un canevas d'un pixel, qui ramène tout en sRGB 8 bits.
+    const RGB = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+)(%?)\s*)?\)$/i;
+    const couleursLues = new Map();
+    let pinceau = null;
+
+    /** Couleur CSS → [r, g, b, a] (composantes 0-255, alpha 0-1), ou null si illisible. */
+    const lireCouleur = (valeur) => {
+        const v = (valeur || '').trim();
+        if (!v) return null;
+        if (v === 'transparent') return [0, 0, 0, 0];
+        const m = v.match(RGB);
+        if (m) {
+            const alpha = m[4] === undefined ? 1 : parseFloat(m[4]) / (m[5] ? 100 : 1);
+            return [+m[1], +m[2], +m[3], alpha];
+        }
+        if (couleursLues.has(v)) return couleursLues.get(v);
+        let res = null;
+        try {
+            if (!pinceau) {
+                const canevas = document.createElement('canvas');
+                canevas.width = canevas.height = 1;
+                pinceau = canevas.getContext('2d', { willReadFrequently: true });
+            }
+            // Deux témoins : une valeur refusée par le canevas laisse le précédent en place.
+            pinceau.fillStyle = '#000001';
+            pinceau.fillStyle = v;
+            const refusee = pinceau.fillStyle === '#000001';
+            pinceau.fillStyle = '#000002';
+            pinceau.fillStyle = v;
+            if (!(refusee && pinceau.fillStyle === '#000002')) {
+                pinceau.clearRect(0, 0, 1, 1);
+                pinceau.fillRect(0, 0, 1, 1);
+                const [r, g, b, a] = pinceau.getImageData(0, 0, 1, 1).data;
+                res = [r, g, b, a / 255];
+            }
+        } catch { /* canevas indisponible */ }
+        if (couleursLues.size >= 200) couleursLues.delete(couleursLues.keys().next().value);
+        couleursLues.set(v, res);
+        return res;
+    };
+
+    /** Vrai pour toute couleur d'alpha nul, quelle que soit sa syntaxe, ou illisible. */
+    const isTransparent = (color) => {
+        const c = lireCouleur(color);
+        return !c || c[3] === 0;
     };
 
     // =========================================================================
@@ -346,12 +448,19 @@
         // doivent s'accorder dessus : celle qui l'écarte, et celle qui aligne le message
         // d'abonnement sur ce même bord.
         const NOTICE_GAP = '6px';
+        // Vignette « cadeau mystère » d'un gift multiple. La liste de ses destinataires se
+        // retire d'autant, pour s'aligner sur le texte qui suit la vignette.
+        const GIFT_IMG = 26;
+        const GIFT_IMG_GAP = 6;
+        // Typographie d'un message de chat Twitch, reprise par le message joint à une
+        // notice quand l'apparence « citation » est désactivée.
+        const MESSAGE_FONT_SIZE = '14px';
+        const MESSAGE_LINE_HEIGHT = '1.5';
         const MSG = `.btc-notice-line.btc-notice-line ${SEL.nestedMessage}`;
         const Q = 'p.btc-reply-quote.btc-reply-quote';
         const NL = '.btc-notice-line.btc-notice-line';
         const NC = '.btc-notice-card.btc-notice-card';
         const S = '.btc-reply-slot.btc-reply-slot';
-        const L = '.chat-line__message.btc-reply.btc-reply';
 
         return `
         :root {
@@ -383,7 +492,7 @@
            l'ancrage devient indépendant du contenu. */
         ${S} .tw-svg,
         ${S} > * > div:first-child:has(svg) {
-            height: calc(var(--btc-reply-font-scale, ${r.fontScale}) * ${r.lineHeight}em) !important;
+            height: calc(var(--btc-reply-font-scale) * ${r.lineHeight}em) !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -407,7 +516,7 @@
             -webkit-box-orient: initial !important;
             max-height: none !important;
             height: auto !important;
-            font-size: calc(1em * var(--btc-reply-font-scale, ${r.fontScale})) !important;
+            font-size: calc(1em * var(--btc-reply-font-scale)) !important;
             line-height: ${r.lineHeight} !important;
             color: var(--btc-reply-color) !important;
             overflow-wrap: anywhere !important;
@@ -436,8 +545,8 @@
             text-underline-offset: 2px !important;
         }` : ''}
         ${S} svg {
-            width: calc(var(--btc-reply-font-scale, ${r.fontScale}) * 1.15em) !important;
-            height: calc(var(--btc-reply-font-scale, ${r.fontScale}) * 1.15em) !important;
+            width: calc(var(--btc-reply-font-scale) * 1.15em) !important;
+            height: calc(var(--btc-reply-font-scale) * 1.15em) !important;
             opacity: 0.55;
             flex-shrink: 0;
         }
@@ -465,7 +574,7 @@
             /* Même expression que la citation, donc exactement la même taille rendue :
                une valeur en pixels recopiée à la main divergerait au premier réglage. */
             font-size: ${c.quoteLook
-                ? `calc(1em * var(--btc-reply-font-scale, ${r.fontScale}))`
+                ? `calc(1em * var(--btc-reply-font-scale))`
                 : c.fontSize} !important;
             line-height: ${c.lineHeight} !important;
             padding: 0 0 0 ${c.textIndent} !important;
@@ -488,6 +597,10 @@
             left: ${c.textIndent} !important;
             top: 50% !important;
             transform: translateY(-50%) !important;
+            height: calc(${c.lineHeight} * 1em) !important;
+            width: ${c.iconSize} !important;
+            display: flex !important;
+            align-items: center !important;
         }
         ${NL} p,
         ${NL} span:not(.btc-gift-recipient) {
@@ -516,21 +629,20 @@
         }
         /* Le message écrit par la personne qui se réabonne est une ligne de chat
            complète, imbriquée dans la notice et rendue par Twitch à sa taille normale.
-           Il vit hors du bloc de texte de la notice : aucune des règles de mise en
-           ligne ne l'atteint, et il ressortait comme un corps étranger au milieu d'une
-           notice à la taille d'une citation. Il prend donc la même typographie — ce
-           sont, comme une citation, les mots de quelqu'un d'autre — mais garde son
-           propre bloc : c'est du texte libre, le fondre dans la phrase de Twitch
-           brouillerait qui parle.
+           Il vit en principe hors du bloc de texte de la notice, et ressortait comme un
+           corps étranger au milieu d'une notice à la taille d'une citation. Il prend donc
+           la même typographie — ce sont, comme une citation, les mots de quelqu'un
+           d'autre — mais garde son propre bloc : c'est du texte libre, le fondre dans la
+           phrase de Twitch brouillerait qui parle. S'il se retrouve dans le bloc de texte,
+           la règle de mise en ligne plus bas l'exclut explicitement, lui et son contenu.
 
            On hérite de la taille au lieu de réappliquer l'expression de la citation :
-           celle-ci est relative au
-           em du parent, et le parent est déjà réduit — la réappliquer ici réduirait une
-           seconde fois. */
+           celle-ci est relative au em du parent, et le parent est déjà réduit — la
+           réappliquer ici réduirait une seconde fois. */
         ${NL} ${SEL.resubCustom},
         ${MSG} {
-            font-size: ${c.quoteLook ? 'inherit' : '14px'} !important;
-            line-height: ${c.quoteLook ? c.lineHeight : '1.5'} !important;
+            font-size: ${c.quoteLook ? 'inherit' : MESSAGE_FONT_SIZE} !important;
+            line-height: ${c.quoteLook ? c.lineHeight : MESSAGE_LINE_HEIGHT} !important;
             /* Aucun retrait propre : le remplissage de la notice place déjà le message
                sur le même bord gauche que le texte de l'annonce. */
             margin: 2px 0 0 0 !important;
@@ -558,10 +670,10 @@
         }
         /* Illustration « cadeau mystère » : de 100 px de haut à une vignette. */
         ${NL} ${SEL.massGiftImage} {
-            width: 26px !important;
-            height: 26px !important;
+            width: ${GIFT_IMG}px !important;
+            height: ${GIFT_IMG}px !important;
             object-fit: contain !important;
-            margin: 0 6px 0 0 !important;
+            margin: 0 ${GIFT_IMG_GAP}px 0 0 !important;
         }
         ${NL} ${SEL.massGiftOverlay} {
             display: none !important;
@@ -581,12 +693,6 @@
            ordinaire suffit, et le texte occupe toute la largeur restante. */
         ${NL} .btc-notice-row {
             display: block !important;
-        }
-        ${NL} .btc-notice-icon {
-            height: calc(${c.lineHeight} * 1em) !important;
-            width: ${c.iconSize} !important;
-            display: flex !important;
-            align-items: center !important;
         }
         ${NL} .btc-notice-text {
             display: block !important;
@@ -611,12 +717,12 @@
            bloc de texte passe en ligne.
 
            Exception : le message personnalisé d'un resub, du texte libre écrit par la
-           personne, garde son propre bloc. Le :not() le retire de la sélection et,
-           accessoirement, porte la spécificité de cette règle au-dessus de celle qui le
-           met en forme plus bas — l'ordre des règles ne décide donc de rien ici. */
-        ${NL} .btc-notice-text div:not(:has(${SEL.nestedMessage})),
-        ${NL} .btc-notice-text p:not(${SEL.nestedMessage}),
-        ${NL} .btc-notice-text span:not(${SEL.nestedMessage}) {
+           personne, garde son propre bloc s'il se trouve ici. Les :not() le retirent de
+           la sélection, lui (X), tout ce qu'il contient (X *) et, pour les div, les
+           conteneurs qui l'entourent (:has(X)) : un bloc ne se loge pas dans une ligne. */
+        ${NL} .btc-notice-text div:not(${SEL.nestedMessage}):not(${SEL.nestedMessage} *):not(:has(${SEL.nestedMessage})),
+        ${NL} .btc-notice-text p:not(${SEL.nestedMessage}):not(${SEL.nestedMessage} *),
+        ${NL} .btc-notice-text span:not(${SEL.nestedMessage}):not(${SEL.nestedMessage} *) {
             display: inline !important;
         }
 
@@ -707,16 +813,18 @@
 
         /* ---------- Regroupement des gifts multiples ---------- */
         .btc-hidden { display: none !important; }
+        /* Couleurs tirées de celle du texte : lisibles sur le thème sombre comme sur le
+           clair, là où un blanc semi-transparent disparaissait sur fond blanc. */
         .btc-gift-recipients {
-            margin: 3px 0 0 32px;
-            color: hsla(0, 0%, 100%, 0.72);
+            margin: 3px 0 0 ${GIFT_IMG + GIFT_IMG_GAP}px;
+            color: color-mix(in srgb, currentColor 72%, transparent);
             font-size: 0.95em;
             line-height: 1.35;
             overflow-wrap: anywhere;
         }
         .btc-gift-recipient:not(:last-child)::after {
             content: ", ";
-            color: hsla(0, 0%, 100%, 0.45);
+            color: color-mix(in srgb, currentColor 62%, transparent);
         }
         .btc-gift-pending {
             opacity: 0.6;
@@ -729,7 +837,7 @@
         .btc-notice-card,
         .chat-line__status,
         .seventv-system-notice-line {
-            border-bottom: 1px solid hsla(0, 0%, 100%, 0.08) !important;
+            border-bottom: 1px solid color-mix(in srgb, currentColor 8%, transparent) !important;
             padding-bottom: 4px !important;
         }
         ` : ''}
@@ -824,11 +932,14 @@
         const name = img.dataset.emoteName || img.getAttribute('alt');
         if (!name) return;
         const connu = emoteIndex.get(name);
+        // Toute emote revue repasse en tête : à l'éviction, ce sont les moins récemment
+        // vues qui partent, et non les premières vues — les emotes phares de la chaîne.
+        if (connu) emoteIndex.delete(name);
         // Déjà connue avec ses proportions : plus rien à en tirer. Sans elles on
         // retente, l'image de la fois précédente n'était pas encore chargée. On lit
         // uniquement les dimensions naturelles : mesurer la boîte forcerait un calcul
         // de mise en page sur chaque emote de chaque message.
-        if (connu && connu.ratio) return;
+        if (connu && connu.ratio) { emoteIndex.set(name, connu); return; }
         const url = (connu && connu.url)
             || img.dataset.fallbackImageUrl
             || urlFromSrcset(img.getAttribute('srcset'))
@@ -839,7 +950,7 @@
             ? ratioPlausible(img.naturalWidth / img.naturalHeight)
             : 0;
         if (!connu && emoteIndex.size >= EMOTE_INDEX_MAX) {
-            // FIFO : on jette le plus ancien quart.
+            // On jette le quart le moins récemment vu.
             let drop = Math.floor(EMOTE_INDEX_MAX / 4);
             for (const key of emoteIndex.keys()) {
                 if (drop-- <= 0) break;
@@ -849,13 +960,6 @@
         emoteIndex.set(name, { url, ratio });
     };
 
-    const indexEmotes = (root) => {
-        if (!CONFIG.reply.renderEmotes) return;
-        let images;
-        try { images = root.querySelectorAll(SEL.emote); } catch (e) { return; }
-        for (const img of images) rememberEmote(img);
-    };
-
     // =========================================================================
     // INDEX DES COULEURS DE PSEUDO
     // La citation ne contient que « @pseudo » en texte brut. On mémorise la couleur
@@ -863,34 +967,61 @@
     // alors d'un coup d'œil à qui le message répond.
     // =========================================================================
     const NAME_INDEX_MAX = 400;
-    const nameColors = new Map(); // pseudo en minuscules -> couleur
+    const nameColors = new Map(); // login ou nom affiché, en minuscules -> couleur
+
+    // Pseudos de notice dont la couleur n'est pas encore connue (voir plus bas).
+    const PENDING_NAMES_MAX = 60;
+    const pendingNoticeNames = new Map();   // login -> Set(éléments)
+
+    const applyNoticeNameColor = (el, color) => {
+        ajouterClasse(el, 'btc-notice-name');
+        // En important : Twitch colore les enveloppes intérieures par ses propres
+        // classes, qu'un style inline ordinaire ne dépasserait pas.
+        el.style.setProperty('color', color, 'important');
+    };
+
+    /**
+     * Retient la couleur d'une clé. Elle repasse en tête à chaque message de la personne,
+     * si bien que l'éviction touche les moins récemment vus, et elle suit un changement de
+     * couleur en cours de session au lieu de garder la première vue.
+     */
+    const memoriserCouleur = (cle, color) => {
+        nameColors.delete(cle);
+        if (nameColors.size >= NAME_INDEX_MAX) nameColors.delete(nameColors.keys().next().value);
+        nameColors.set(cle, color);
+
+        // Un pseudo de notice attendait cette couleur : on le sert maintenant.
+        const attente = pendingNoticeNames.get(cle);
+        if (attente) {
+            for (const nom of attente) {
+                if (nom.isConnected) applyNoticeNameColor(nom, color);
+            }
+            pendingNoticeNames.delete(cle);
+        }
+    };
 
     // On indexe toujours, même quand la recoloration est désactivée : sinon activer
     // l'option depuis la console ne colorerait que les gens vus après coup.
-    const indexNameColors = (root) => {
-        let nodes;
-        try { nodes = root.querySelectorAll(SEL.username); } catch (e) { return; }
-        for (const el of nodes) {
-            const login = (el.dataset.seventvUserLogin || el.dataset.aUser || el.textContent || '')
-                .trim().toLowerCase();
-            if (!login) continue;
+    // Double clé : le login (data-a-user), stable, et le nom affiché, seul présent dans
+    // une notice. Pour un pseudo international, les deux diffèrent.
+    const indexNameColors = (noms) => {
+        for (const el of noms) {
             const color = el.style.color || el.dataset.seventvChatColor;
             if (!color) continue;
-            if (nameColors.has(login)) continue;
-            if (nameColors.size >= NAME_INDEX_MAX) {
-                nameColors.delete(nameColors.keys().next().value);
-            }
-            nameColors.set(login, color);
-
-            // Un pseudo de notice attendait cette couleur : on le sert maintenant.
-            const attente = pendingNoticeNames.get(login);
-            if (attente) {
-                for (const el of attente) {
-                    if (el.isConnected) applyNoticeNameColor(el, color);
-                }
-                pendingNoticeNames.delete(login);
-            }
+            const login = (el.dataset.seventvUserLogin || el.dataset.aUser || '').trim().toLowerCase();
+            const affiche = (el.textContent || '').trim().toLowerCase();
+            if (login) memoriserCouleur(login, color);
+            if (affiche && affiche !== login) memoriserCouleur(affiche, color);
         }
+    };
+
+    /**
+     * Vrai si l'élément appartient au message qu'une personne a joint à la notice
+     * `racine` : ce texte-là n'est ni traduit, ni analysé, ni recoloré comme une notice.
+     */
+    const dansMessageJoint = (el, racine) => {
+        const joint = el && el.closest(`${SEL.nestedMessage},${SEL.resubCustom}`);
+        return !!joint && joint !== racine && racine.contains(joint);
     };
 
     // =========================================================================
@@ -902,31 +1033,28 @@
     // d'écrire — alors le pseudo est mis en attente et recoloré dès qu'un de ses
     // messages passe.
     // =========================================================================
-    const PENDING_NAMES_MAX = 60;
-    const pendingNoticeNames = new Map();   // login -> Set(éléments)
-
-    const applyNoticeNameColor = (el, color) => {
-        el.classList.add('btc-notice-name');
-        // En important : Twitch colore les enveloppes intérieures par ses propres
-        // classes, qu'un style inline ordinaire ne dépasserait pas.
-        el.style.setProperty('color', color, 'important');
-    };
-
     const colorNoticeNames = (noticeLine) => {
         if (!CONFIG.compact.colorNames) return;
         // Source exacte quand elle existe : le message joint à un abonnement porte la
-        // couleur en style inline. On la préfère à l'index, qui repose sur le nom
-        // affiché et peut manquer quelqu'un dont le login diffère.
+        // couleur de son auteur en style inline. Elle ne vaut que pour le pseudo de cet
+        // auteur, pas pour les autres noms de la notice.
         const auteur = noticeLine.querySelector(`${SEL.nestedMessage} ${SEL.username}`);
         const couleurJointe = auteur ? (auteur.style.color || '').trim() : '';
+        const nomsAuteur = new Set();
+        if (auteur) {
+            for (const v of [auteur.dataset.aUser, auteur.dataset.seventvUserLogin, auteur.textContent]) {
+                if (v && v.trim()) nomsAuteur.add(v.trim().toLowerCase());
+            }
+        }
 
         for (const nom of noticeLine.querySelectorAll(`${SEL.chatterName},${SEL.massGiftName}`)) {
             // Le pseudo du message joint a déjà la sienne, posée par Twitch.
-            if (nom.closest(SEL.nestedMessage)) continue;
+            if (dansMessageJoint(nom, noticeLine)) continue;
             if (nom.classList.contains('btc-notice-name')) continue;
 
             const login = nom.textContent.trim().toLowerCase();
-            const color = couleurJointe || (login && nameColors.get(login));
+            const color = (couleurJointe && nomsAuteur.has(login) ? couleurJointe : '')
+                || (login && nameColors.get(login));
             if (color) { applyNoticeNameColor(nom, color); continue; }
             if (!login) continue;
 
@@ -948,7 +1076,7 @@
         // à voir avec la recoloration. Les lier faisait dépendre le soulignement de la
         // cible d'une option sans rapport, et seules les mentions du texte étaient
         // soulignées.
-        span.classList.add('btc-reply-target');
+        ajouterClasse(span, 'btc-reply-target');
         if (!CONFIG.reply.colorQuotedName) return;
 
         // 7TV expose le login exact de la personne citée sur la ligne. On le préfère au
@@ -964,6 +1092,10 @@
     // RÉPONSES
     // =========================================================================
 
+    /** Twitch signale une réponse par l'aria-label ; 7TV par un attribut dédié. */
+    const looksLikeReply = (line) => !!line.dataset.seventvReplyParentLogin
+        || RE.replyAria.test(line.getAttribute('aria-label') || '');
+
     /**
      * Le bloc « réponse » n'a aucune classe stable. Twitch place systématiquement un
      * premier <div> vide dans .chat-line__message-container ; quand le message est une
@@ -974,7 +1106,10 @@
         if (!container) return null;
         const slot = container.firstElementChild;
         if (!slot || slot.childElementCount === 0) return null;
-        const quote = slot.querySelector('p');
+        // Une citation porte le texte d'origine dans son title. Un <p> sans title n'est
+        // retenu que si Twitch ou 7TV annoncent eux-mêmes une réponse : sinon tout bloc
+        // que Twitch placerait là (bandeau, épinglage…) passerait pour une citation.
+        const quote = slot.querySelector('p[title]') || (looksLikeReply(line) && slot.querySelector('p'));
         if (!quote) return null;
         return { slot, quote };
     };
@@ -1023,12 +1158,11 @@
 
                 if (emoteIndex.has(t)) {
                     const { url, ratio } = emoteIndex.get(t);
-                    const img = document.createElement('img');
+                    const img = creer('img', 'btc-reply-emote');
                     img.src = url;
                     img.alt = t;
                     img.title = t;
                     img.loading = 'lazy';
-                    img.className = 'btc-reply-emote';
                     if (ratio) {
                         // Place réservée d'avance : le chargement ne déplace plus rien.
                         img.style.aspectRatio = String(ratio);
@@ -1038,8 +1172,7 @@
                     }
                     frag.appendChild(img);
                 } else if (t.length > 1 && t[0] === '@') {
-                    const span = document.createElement('span');
-                    span.className = 'btc-reply-mention';
+                    const span = creer('span', 'btc-reply-mention');
                     span.textContent = t;
                     frag.appendChild(span);
                 } else {
@@ -1057,21 +1190,11 @@
             const stripped = child.textContent.replace(RE.replyPrefix, '');
             if (stripped !== child.textContent) {
                 child.textContent = stripped;
-                return true;
+                return;
             }
-            if (child.textContent.trim()) return false; // premier texte utile, pas un préfixe
+            if (child.textContent.trim()) return; // premier texte utile, pas un préfixe
         }
-        return false;
     };
-
-    /**
-     * Reporte la couleur posée par 7TV (highlight de grade modo/VIP, first-time chatter,
-     * highlight personnalisé) sur la barre latérale du bloc de citation. On lit le style
-     * calculé plutôt que des classes précises : ça marche quelle que soit la façon dont
-     * 7TV applique la couleur, et ça survivra à ses prochaines mises à jour.
-     */
-    const isTransparent = (color) =>
-        !color || color === 'transparent' || /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(color);
 
     /**
      * Marque les lignes où 7TV dessine déjà sa barre, pour que le style rail n'en
@@ -1096,6 +1219,12 @@
         if (el.hasAttribute(HIGHLIGHT_LABEL_ATTR)) el.removeAttribute(HIGHLIGHT_LABEL_ATTR);
     };
 
+    /**
+     * Reporte la couleur posée par 7TV (highlight de grade modo/VIP, first-time chatter,
+     * highlight personnalisé) sur la barre latérale du bloc de citation. On lit le style
+     * calculé plutôt que des classes précises : ça marche quelle que soit la façon dont
+     * 7TV applique la couleur, et ça survivra à ses prochaines mises à jour.
+     */
     const applyGradeAccent = (line) => {
         let accent = null;
         // 7TV trace-t-il déjà sa propre barre à gauche de cette ligne ? Si oui, le filet
@@ -1123,56 +1252,47 @@
 
             if (declared) {
                 accent = declared;
-            } else if (parseFloat(cs.borderLeftWidth) > 0 && !isTransparent(cs.borderLeftColor)) {
+            } else if (barreNative) {
                 accent = cs.borderLeftColor;
-            } else if (!isTransparent(cs.backgroundColor)) {
+            } else {
                 // Fond de grade semi-transparent : on en reprend la teinte, opacifiée,
-                // pour que la barre reste lisible.
-                const m = cs.backgroundColor.match(/rgba?\(([^)]+)\)/);
-                if (m) {
-                    const [red, green, blue] = m[1].split(',').map(v => parseFloat(v));
-                    accent = `rgba(${red}, ${green}, ${blue}, 0.85)`;
-                }
+                // pour que la barre reste lisible. Un fond d'alpha nul n'en a aucune.
+                const fond = lireCouleur(cs.backgroundColor);
+                if (fond && fond[3] > 0) accent = `rgba(${fond[0]}, ${fond[1]}, ${fond[2]}, 0.85)`;
             }
-        } catch (e) { /* style indisponible */ }
+        } catch { /* style indisponible */ }
 
         if (accent) line.style.setProperty('--btc-reply-accent', accent);
         else line.style.removeProperty('--btc-reply-accent');
         appliquerBarreNative(line, barreNative);
     };
 
-    /** Twitch signale une réponse par l'aria-label ; 7TV par un attribut dédié. */
-    const looksLikeReply = (line) => !!line.dataset.seventvReplyParentLogin
-        || RE.replyAria.test(line.getAttribute('aria-label') || '');
-
     const processReply = (line) => {
         const parts = findReplyParts(line);
         if (!parts) {
             // Twitch dit que c'est une réponse mais nous n'avons pas trouvé la citation :
             // la structure a changé. C'est exactement ce qui a tué la v14 en silence.
-            if (looksLikeReply(line)) diag.reponsesRatees++;
+            if (looksLikeReply(line)) compter('reponsesRatees', line);
             return;
         }
-        diag.reponses++;
         const { slot, quote } = parts;
-
-        line.classList.add('btc-reply');
-        slot.classList.add('btc-reply-slot');
-        quote.classList.add('btc-reply-quote');
-        applyGradeAccent(line);
 
         // Idempotence. On se repère sur l'attribut title, qui porte le texte d'origine
         // et que Twitch met à jour quand React recycle la ligne pour un autre message.
         // Surtout pas sur textContent : on le modifie nous-mêmes, donc il dériverait et
-        // le bloc serait retraité en boucle.
+        // le bloc serait retraité en boucle. Une ligne déjà traitée ne relit pas son style :
+        // la teinte de grade suit les changements de classe par l'observateur.
         const key = quote.getAttribute('title');
-        if (key !== null) {
-            if (quote.dataset.btcQuote === key) return;
-            quote.dataset.btcQuote = key;
-        } else {
-            if (quote.dataset.btcQuote === '1') return;
-            quote.dataset.btcQuote = '1';
-        }
+        const marque = key !== null ? key : '1';
+        if (quote.dataset.btcQuote === marque && line.classList.contains('btc-reply')) return;
+
+        compter('reponses', line);
+        ajouterClasse(line, 'btc-reply');
+        ajouterClasse(slot, 'btc-reply-slot');
+        ajouterClasse(quote, 'btc-reply-quote');
+        applyGradeAccent(line);
+        if (quote.dataset.btcQuote === marque) return;
+        quote.dataset.btcQuote = marque;
 
         if (CONFIG.reply.hidePrefix) stripReplyPrefix(quote);
         colorQuotedName(quote, line);
@@ -1181,25 +1301,40 @@
             const target = findQuoteTextNode(quote) || quote;
             tokenizeQuote(target);
         }
-        log('réponse traitée', key.slice(0, 60));
+        log('réponse traitée', () => (key || '').slice(0, 60));
     };
 
     // =========================================================================
     // NOTICES (sub, prime, gift, raid…)
     // =========================================================================
 
+    /** Filtre de parcours : écarte le texte du message personnel joint à `racine`. */
+    const horsMessageJoint = (racine) => (node) => (dansMessageJoint(node.parentElement, racine)
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT);
+
+    /** Texte d'une notice, sans le message que la personne y a écrit. */
+    const texteDeNotice = (notice) => {
+        const walker = document.createTreeWalker(notice, NodeFilter.SHOW_TEXT, { acceptNode: horsMessageJoint(notice) });
+        let texte = '';
+        let node;
+        while ((node = walker.nextNode())) texte += node.textContent;
+        return texte;
+    };
+
+    // Seul le texte de Twitch est traduit : le message joint est écrit par quelqu'un, et
+    // une règle comme « redeemed → a utilisé » le défigurait.
     const translateNotice = (element) => {
         if (!CONFIG.translate) return;
-        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, { acceptNode: horsMessageJoint(element) });
         let node;
         while ((node = walker.nextNode())) {
-            let text = node.textContent;
+            const text = node.textContent;
             if (!text || text.length < 3) continue;
             let out = text;
-            for (const [re, to] of NOTICE_FR) {
-                re.lastIndex = 0;
-                if (re.test(out)) { re.lastIndex = 0; out = out.replace(re, to); }
-            }
+            // replace() sur une expression globale repart toujours du début et rend la
+            // chaîne intacte s'il ne trouve rien : un test préalable doublait le travail.
+            for (const [re, to] of NOTICE_FR) out = out.replace(re, to);
             if (out !== text) node.textContent = out.replace(/\s+([.,!?])/g, '$1');
         }
     };
@@ -1233,10 +1368,10 @@
         }
         if (!rangee || rangee.childElementCount < 2) return;
 
-        rangee.classList.add('btc-notice-row');
-        colonne.classList.add('btc-notice-icon');
+        ajouterClasse(rangee, 'btc-notice-row');
+        ajouterClasse(colonne, 'btc-notice-icon');
         for (const enfant of rangee.children) {
-            if (enfant !== colonne) enfant.classList.add('btc-notice-text');
+            if (enfant !== colonne) ajouterClasse(enfant, 'btc-notice-text');
         }
     };
 
@@ -1248,7 +1383,7 @@
     // couleur non neutre rencontrée pour teinter aussi celles qui n'en ont pas — sans
     // quoi la moitié des notices resteraient grises.
     // =========================================================================
-    let accentChaine = '';
+    let accentChaine = null;   // [r, g, b] de la dernière couleur non neutre rencontrée
 
     // Notices teintées d'un gris faute de mieux : la couleur de la chaîne n'était pas
     // encore connue. Rien ne garantit qu'une notice d'abonnement arrive en premier —
@@ -1261,82 +1396,79 @@
     const estNeutre = (red, green, blue) =>
         Math.max(red, green, blue) - Math.min(red, green, blue) < 12;
 
-    const poserTeinte = (card, composantes) => {
+    const poserTeinte = (card, [red, green, blue]) => {
         card.style.setProperty('--btc-notice-tint',
-            `rgba(${composantes.join(', ')}, ${CONFIG.compact.tintOpacity})`);
+            `rgba(${red}, ${green}, ${blue}, ${CONFIG.compact.tintOpacity})`);
+    };
+
+    const mettreEnAttente = (card) => {
+        if (cartesNeutres.size >= CARTES_NEUTRES_MAX) {
+            cartesNeutres.delete(cartesNeutres.values().next().value);
+        }
+        cartesNeutres.add(card);
     };
 
     const tintNotice = (card, bar) => {
-        if (!CONFIG.compact.tintOpacity) return;
+        if (!CONFIG.compact.tintOpacity) {
+            card.style.removeProperty('--btc-notice-tint');
+            return;
+        }
         let composantes = null;
         try {
-            const m = bar && getComputedStyle(bar).backgroundColor.match(/rgba?\(([^)]+)\)/);
-            if (m) {
-                const [red, green, blue, alpha] = m[1].split(',').map(v => parseFloat(v));
-                // Une barre invisible ne fournit rien : on retombera sur l'accent connu.
-                if ([red, green, blue].every(Number.isFinite) && alpha !== 0) {
-                    composantes = [red, green, blue];
-                }
-            }
-        } catch (e) { /* style indisponible */ }
+            const c = bar && lireCouleur(getComputedStyle(bar).backgroundColor);
+            // Une barre invisible ne fournit rien : on retombera sur l'accent connu.
+            if (c && c[3] > 0) composantes = c.slice(0, 3);
+        } catch { /* style indisponible */ }
 
         // Aucune barre exploitable — certaines annonces n'en ont pas du tout. Elles
         // doivent malgré tout porter la couleur de la chaîne : c'est « toute annonce »
         // qui est demandé, pas « toute annonce qui déclare une couleur ».
         if (!composantes) {
-            if (!accentChaine) {
-                if (cartesNeutres.size >= CARTES_NEUTRES_MAX) {
-                    cartesNeutres.delete(cartesNeutres.values().next().value);
-                }
-                cartesNeutres.add(card);
-                return;
-            }
-            poserTeinte(card, accentChaine.split(',').map(v => parseFloat(v)));
+            if (!accentChaine) { mettreEnAttente(card); return; }
+            poserTeinte(card, accentChaine);
             return;
         }
 
         if (!estNeutre(...composantes)) {
-            const decouverte = accentChaine !== composantes.join(', ');
-            accentChaine = composantes.join(', ');
+            const decouverte = !accentChaine || accentChaine.join() !== composantes.join();
+            accentChaine = composantes;
             if (decouverte && cartesNeutres.size) {
-                const rattrapage = accentChaine.split(',').map(v => parseFloat(v));
                 for (const attente of cartesNeutres) {
-                    if (attente.isConnected) poserTeinte(attente, rattrapage);
+                    if (attente.isConnected) poserTeinte(attente, accentChaine);
                 }
                 cartesNeutres.clear();
-        arreterGlissement();
-        relacherTout();
             }
         } else if (accentChaine) {
-            composantes = accentChaine.split(',').map(v => parseFloat(v));
+            composantes = accentChaine;
         } else {
-            if (cartesNeutres.size >= CARTES_NEUTRES_MAX) {
-                cartesNeutres.delete(cartesNeutres.values().next().value);
-            }
-            cartesNeutres.add(card);
+            mettreEnAttente(card);
         }
         poserTeinte(card, composantes);
     };
 
+    // Une carte de notice contient la barre, la notice et au plus un élément de décor.
+    // Au-delà, ce n'est pas un conteneur dédié et on n'y touche pas.
+    const CARTE_ENFANTS_MAX = 3;
+
     const compactNotice = (noticeLine) => {
         if (!CONFIG.compact.enabled) return;
-        noticeLine.classList.add('btc-notice-line');
+        ajouterClasse(noticeLine, 'btc-notice-line');
 
         // La « carte » est le parent qui porte le fond et la barre de couleur. On ne
         // la décore que si c'est bien un conteneur dédié : jamais la racine du chat,
         // sinon le padding s'appliquerait à toute la liste.
         const card = noticeLine.parentElement;
         if (!card || card === chatRoot || card.classList.contains('btc-notice-card')) return;
-        if (card.childElementCount > 3) return;
+        if (card.childElementCount > CARTE_ENFANTS_MAX) return;
 
-        card.classList.add('btc-notice-card');
+        ajouterClasse(card, 'btc-notice-card');
         layoutNoticeRow(noticeLine);
         colorNoticeNames(noticeLine);
         // La barre de couleur est le frère précédent : un div vide avec un
         // background inline.
         const bar = noticeLine.previousElementSibling;
         const barreValide = bar && !bar.childElementCount && bar.getAttribute('style');
-        if (barreValide) bar.classList.add('btc-notice-bar');
+        if (barreValide) ajouterClasse(bar, 'btc-notice-bar');
         // Appelé même sans barre : la notice doit être teintée dans tous les cas.
         tintNotice(card, barreValide ? bar : null);
     };
@@ -1345,8 +1477,8 @@
     // REGROUPEMENT DES GIFTS MULTIPLES
     // =========================================================================
     const gifts = {
-        pending: new Map(),   // donateur -> { notice, expected, recipients, listEl, timer, ts }
-        recent: [],           // gifts individuels vus récemment : { donor, recipient, line, ts }
+        pending: new Map(),   // donateur -> { notice, expected, recipients, listEl, timer }
+        recent: [],           // gifts individuels pas encore rattachés : { donor, recipient, line, ts }
 
         MAX_PENDING: 8,
 
@@ -1357,26 +1489,19 @@
             if (i) this.recent.splice(0, i);
         },
 
-        open(donor, notice, expected, tier) {
+        open(donor, notice, expected) {
             this.close(donor);
-            if (this.pending.size >= this.MAX_PENDING) {
-                const oldest = [...this.pending.keys()][0];
-                this.close(oldest);
-            }
-            const listEl = document.createElement('div');
-            listEl.className = 'btc-gift-recipients btc-gift-pending';
+            if (this.pending.size >= this.MAX_PENDING) this.close(this.pending.keys().next().value);
+            const listEl = creer('div', 'btc-gift-recipients btc-gift-pending');
             notice.appendChild(listEl);
 
-            const entry = {
-                notice, expected, tier, listEl,
-                recipients: [], ts: Date.now(), timer: null
-            };
+            const entry = { notice, expected, listEl, recipients: [], timer: null };
             entry.timer = setTimeout(() => this.close(donor), CONFIG.compact.giftWindowMs);
             this.pending.set(donor, entry);
 
             // Rattrapage : certains gifts individuels arrivent avant l'annonce.
             this.prune(Date.now());
-            for (const g of this.recent) {
+            for (const g of [...this.recent]) {
                 if (g.donor === donor) this.absorb(donor, g.recipient, g.line);
             }
             this.render(donor);
@@ -1389,7 +1514,10 @@
             if (entry.recipients.length >= entry.expected) return false;
             if (entry.recipients.includes(recipient)) return false;
             entry.recipients.push(recipient);
-            line.classList.add('btc-hidden');
+            ajouterClasse(line, 'btc-hidden');
+            // Rattaché, il quitte la fenêtre de rattrapage : un second gift multiple du même
+            // donateur, quelques secondes plus tard, le reprenait pour lui.
+            this.recent = this.recent.filter((g) => g.line !== line);
             return true;
         },
 
@@ -1397,16 +1525,14 @@
             const entry = this.pending.get(donor);
             if (!entry) return;
             const { listEl, recipients, expected } = entry;
-            listEl.textContent = '';
-            for (const name of recipients) {
-                const span = document.createElement('span');
-                span.className = 'btc-gift-recipient';
+            // Ajout incrémental : seuls les nouveaux destinataires sont créés. Reconstruire
+            // la liste à chaque gift coûtait n(n+1)/2 éléments, au plus fort de la rafale.
+            for (const name of recipients.slice(listEl.childElementCount)) {
+                const span = creer('span', 'btc-gift-recipient');
                 span.textContent = name;
                 listEl.appendChild(span);
             }
-            const complete = recipients.length >= expected;
-            listEl.classList.toggle('btc-gift-pending', !complete);
-            if (!recipients.length) listEl.textContent = '';
+            listEl.classList.toggle('btc-gift-pending', recipients.length < expected);
         },
 
         close(donor) {
@@ -1419,16 +1545,31 @@
         },
 
         reset() {
-            for (const entry of this.pending.values()) clearTimeout(entry.timer);
-            this.pending.clear();
+            // Fermer plutôt qu'abandonner : sans close(), la liste gardait pour toujours
+            // son style « en attente ».
+            for (const donor of [...this.pending.keys()]) this.close(donor);
             this.recent.length = 0;
         }
     };
 
+    /** Pseudos de la notice elle-même, hors message joint. */
+    const nomsDeNotice = (notice) => [...notice.querySelectorAll(SEL.chatterName)]
+        .filter((n) => !dansMessageJoint(n, notice));
+
     const nameAt = (notice, index) => {
-        const names = notice.querySelectorAll(SEL.chatterName);
-        const el = names[index];
+        const el = nomsDeNotice(notice)[index];
         return el ? normalizeSpaces(el.textContent) : null;
+    };
+
+    /**
+     * Entrée du chat qui contient l'élément : l'enfant direct de la racine, ni plus ni
+     * moins. Masquer « le parent de la carte » pouvait viser la racine elle-même pour peu
+     * que Twitch imbrique la notice d'un niveau de moins — tout le chat disparaissait.
+     */
+    const ligneDuChat = (el) => {
+        let line = el;
+        while (line.parentElement && line.parentElement !== chatRoot) line = line.parentElement;
+        return line.parentElement === chatRoot ? line : null;
     };
 
     const processGiftNotice = (notice, text) => {
@@ -1438,10 +1579,9 @@
         if (massMatch) {
             const expected = parseCount(massMatch[1] || massMatch[2]);
             const donorEl = notice.querySelector(`${SEL.massGiftName} ${SEL.chatterName}`)
-                || notice.querySelector(SEL.chatterName);
+                || nomsDeNotice(notice)[0];
             const donor = donorEl ? normalizeSpaces(donorEl.textContent) : null;
-            const tier = (text.match(RE.tier) || [])[1] || '1';
-            if (donor && expected > 0) gifts.open(donor, notice, expected, tier);
+            if (donor && expected > 0) gifts.open(donor, notice, expected);
             return;
         }
 
@@ -1450,9 +1590,8 @@
             const recipient = nameAt(notice, 1);
             if (!donor || !recipient) return;
 
-            const line = notice.closest('.btc-notice-card')?.parentElement
-                || notice.parentElement
-                || notice;
+            const line = ligneDuChat(notice);
+            if (!line) return;
 
             const now = Date.now();
             gifts.prune(now);
@@ -1473,42 +1612,78 @@
 
         translateNotice(notice);
         compactNotice(notice);
+        // Analysé sans le message joint : une phrase comme « gifted a sub to » écrite par
+        // l'abonné suffisait à faire passer sa notice pour un gift.
+        processGiftNotice(notice, normalizeSpaces(texteDeNotice(notice)));
+    };
 
-        const text = normalizeSpaces(notice.textContent || '');
-        processGiftNotice(notice, text);
+    /**
+     * Réapplique aux notices déjà affichées les réglages lus en JS (teinte, couleur des
+     * pseudos, traduction). Le reste de leur mise en forme suit la feuille de style.
+     */
+    const rafraichirNotices = () => {
+        if (!chatRoot) return;
+        for (const n of chatRoot.querySelectorAll('.btc-notice-line')) {
+            translateNotice(n);
+            if (CONFIG.compact.colorNames) {
+                colorNoticeNames(n);
+            } else {
+                for (const nom of n.querySelectorAll('.btc-notice-name')) {
+                    nom.classList.remove('btc-notice-name');
+                    nom.style.removeProperty('color');
+                }
+            }
+            const card = n.parentElement;
+            if (card && card.classList.contains('btc-notice-card')) {
+                const bar = n.previousElementSibling;
+                tintNotice(card, bar && bar.classList.contains('btc-notice-bar') ? bar : null);
+            }
+        }
     };
 
     // =========================================================================
     // TRAITEMENT D'UNE LIGNE
+    // Une seule traversée du sous-arbre : les éléments utiles sont collectés d'un coup,
+    // puis traités dans l'ordre d'avant — index d'abord, pour que les notices et les
+    // citations trouvent les couleurs et les emotes de leur propre lot.
     // =========================================================================
+    const SEL_UTILES = [SEL.emote, SEL.username, SEL.systemNotice, SEL.notice, SEL.line].join(',');
+
+    const collecter = (element) => {
+        const lot = { emotes: [], noms: [], systeme: [], notices: [], lignes: [] };
+        const trier = (el) => {
+            if (el.matches(SEL.emote)) lot.emotes.push(el);
+            if (el.matches(SEL.username)) lot.noms.push(el);
+            // Les notices système 7TV portent le même data-test-selector que celles de
+            // Twitch mais sont déjà compactes : elles ne sont que traduites.
+            if (el.matches(SEL.systemNotice)) lot.systeme.push(el);
+            else if (el.matches(SEL.notice)) lot.notices.push(el);
+            if (el.matches(SEL.line)) lot.lignes.push(el);
+        };
+        if (element.matches(SEL_UTILES)) trier(element);
+        for (const el of element.querySelectorAll(SEL_UTILES)) trier(el);
+        return lot;
+    };
+
+    const traiterLigne = (line) => {
+        compter('lignes', line);
+        stripHighlightLabel(line);
+        processReply(line);
+    };
+
     const processLine = (element) => {
         if (!element || element.nodeType !== Node.ELEMENT_NODE) return;
+        const lot = collecter(element);
 
-        indexEmotes(element);
-        indexNameColors(element);
+        if (CONFIG.reply.renderEmotes) lot.emotes.forEach(rememberEmote);
+        indexNameColors(lot.noms);
 
         // Notices système 7TV (exclusions, suppressions) — toujours en anglais.
-        if (element.matches?.(SEL.systemNotice)) {
-            translateSystemNotice(element);
-        } else {
-            for (const n of element.querySelectorAll(SEL.systemNotice)) translateSystemNotice(n);
-        }
-
-        // Notices Twitch (sub, prime, gift, raid…). Les notices système 7TV portent le
-        // même data-test-selector mais sont déjà compactes : on les laisse tranquilles.
-        const isTwitchNotice = (n) => !n.matches(SEL.systemNotice);
-        if (element.matches?.(SEL.notice) && isTwitchNotice(element)) processNotice(element);
-        for (const n of element.querySelectorAll(SEL.notice)) {
-            if (isTwitchNotice(n)) processNotice(n);
-        }
-
-        // Messages utilisateur
-        if (element.matches?.(SEL.line)) {
-            diag.lignes++; stripHighlightLabel(element); processReply(element);
-        }
-        for (const line of element.querySelectorAll(SEL.line)) {
-            diag.lignes++; stripHighlightLabel(line); processReply(line);
-        }
+        for (const n of lot.systeme) protege(translateSystemNotice, n);
+        // Notices Twitch (sub, prime, gift, raid…).
+        for (const n of lot.notices) protege(processNotice, n);
+        // Messages utilisateur.
+        for (const line of lot.lignes) protege(traiterLigne, line);
     };
 
     // =========================================================================
@@ -1520,7 +1695,6 @@
     // =========================================================================
     const SELF_CHECK_DELAY = 20000;
     let selfCheckTimer = null;
-    let selfCheckDone = false;
 
     // Indices qu'on est bien sur une page de chaîne : sans eux, l'absence de chat est
     // normale (page d'accueil, annuaire…) et il ne faut surtout pas alerter.
@@ -1534,6 +1708,9 @@
 
         add('conteneur du chat', !!root, SEL.chatRoot[0]);
         if (root) {
+            // Un conteneur détaché répond encore à toutes les requêtes : sans ce contrôle,
+            // un script devenu inerte passait le diagnostic.
+            add('conteneur toujours dans la page', root.isConnected, 'chatRoot.isConnected');
             add('ligne de message', !!root.querySelector(SEL.line), SEL.line);
             add('corps du message', !!root.querySelector(SEL.body), SEL.body);
             add('pseudo', !!root.querySelector(SEL.username), SEL.username);
@@ -1545,7 +1722,6 @@
         add('bloc de citation', diag.reponsesRatees === 0,
             '.chat-line__message-container > premier enfant non vide');
 
-        diag.verifieA = Date.now();
         const cassees = sondes.filter(p => !p.ok);
         const inactif = diag.lignes === 0 && diag.notices === 0;
 
@@ -1553,8 +1729,8 @@
             console.warn(
                 `[BetterTwitchChat] ${cassees.length} ancre(s) ne correspondent plus au DOM.\n` +
                 cassees.map(p => `  ✗ ${p.ancre} — ${p.indice}`).join('\n') +
-                '\nTwitch ou 7TV a probablement changé sa structure. Pour la recapturer :' +
-                '\ntools/7tv-dom-recorder.user.js du dépôt, puis transmettre le JSON exporté.'
+                '\nTwitch ou 7TV a probablement changé sa structure. Détail : __BTC.selfCheck().' +
+                '\nÀ signaler sur https://github.com/Maxezify/Betterchat-for-Twitch/issues'
             );
         } else if (verbeux) {
             console.log('[BetterTwitchChat] toutes les ancres répondent.');
@@ -1571,21 +1747,18 @@
 
     const scheduleSelfCheck = () => {
         clearTimeout(selfCheckTimer);
-        selfCheckDone = false;
-        selfCheckTimer = setTimeout(() => {
-            if (selfCheckDone) return;
-            selfCheckDone = true;
-            runSelfCheck();
-        }, SELF_CHECK_DELAY);
+        selfCheckTimer = setTimeout(() => runSelfCheck(), SELF_CHECK_DELAY);
     };
 
     // =========================================================================
     // OBSERVATEUR
     // =========================================================================
-    let chatRoot = null;
     let observer = null;
     let queue = [];
-    let frameScheduled = false;
+    // File pleine : le prochain passage reprend toute la racine, au lieu de jeter sans les
+    // traiter les nœuds les plus anciens — parfois de vraies lignes ou des notices.
+    let fileDebordee = false;
+    let flushPlanifie = false;
     const QUEUE_MAX = 120;
 
     // =========================================================================
@@ -1602,6 +1775,10 @@
     // de molette dépasse largement ce seuil : aucun risque de confondre les deux cas.
     const SCROLL_EPSILON = 4;
     let scroller = null;
+    // Vrai tant que le scroller retenu ne défile pas encore (chat pas assez rempli) : le
+    // choix est alors provisoire et refait à chaque appel. Le premier choix se faisant sur
+    // un chat encore vide, le repli structurel n'était sinon jamais atteint.
+    let scrollerProvisoire = false;
     let colleEnBas = true;
     const scrollersEcoutes = new WeakSet();
 
@@ -1634,10 +1811,15 @@
     // de la cadence du chat : chaque message allonge la liste d'autant de pixels.
     let vitesseContenu = 0;
     let hauteurPrecedente = 0;
+    // Fin du dernier glissement : une reprise après une longue pause repart d'une vitesse
+    // nulle au lieu d'hériter de celle d'une rafale passée.
+    let finGlissement = 0;
+    const PAUSE_OUBLI_VITESSE_MS = 2000;
 
     const arreterGlissement = () => {
         glissementActif = false;
         hauteurPrecedente = 0;   // la prochaine reprise repart d'une mesure fraîche
+        finGlissement = performance.now();
     };
 
     const demarrerBoucle = () => {
@@ -1697,7 +1879,9 @@
         return true;
     };
 
-    const avancerBoucle = (maintenant) => {
+    // Déclaration de fonction, donc hissée : la boucle et demarrerBoucle s'appellent
+    // l'une l'autre.
+    function avancerBoucle(maintenant) {
         frame = null;
         dansLaBoucle = true;
         // Borné des deux côtés : un onglet en arrière-plan ne reçoit plus d'images et
@@ -1706,13 +1890,13 @@
         const dt = Math.min(100, Math.max(1, maintenant - horodatage));
         horodatage = maintenant;
 
-        const encoreDesMessages = relacherEnAttente(maintenant, dt);
+        const encoreDesMessages = relacherEnAttente(maintenant);
         const encoreDuTrajet = avancerGlissement(dt);
         dansLaBoucle = false;
         if (encoreDesMessages || encoreDuTrajet) {
             frame = requestAnimationFrame(avancerBoucle);
         }
-    };
+    }
 
     const mesurerCollage = (sc) => {
         if (!sc) return true;
@@ -1724,8 +1908,12 @@
 
     const recollerEnBas = (sc) => {
         if (!sc) return;
-        if (CONFIG.smoothScrollMs > 0) {
+        // Onglet masqué : aucune image ne viendrait animer le glissement, on va droit au bas.
+        if (CONFIG.smoothScrollMs > 0 && !document.hidden) {
             if (sc.scrollHeight - sc.clientHeight - sc.scrollTop <= 0.5) return;
+            if (!glissementActif && performance.now() - finGlissement > PAUSE_OUBLI_VITESSE_MS) {
+                vitesseContenu = 0;
+            }
             glissementActif = true;
             demarrerBoucle();
             return;
@@ -1733,8 +1921,9 @@
         ecrireScroll(sc, sc.scrollHeight);
     };
 
+    const defile = (el) => !!el && el.scrollHeight - el.clientHeight > SCROLL_EPSILON;
+
     const trouverScroller = () => {
-        const defile = (el) => !!el && el.scrollHeight - el.clientHeight > SCROLL_EPSILON;
         const nomme = document.querySelector(SEL.scroller);
         if (defile(nomme)) return nomme;
         // Repli structurel si Twitch déplaçait le débordement sur un autre niveau :
@@ -1745,59 +1934,65 @@
             if ((oy === 'auto' || oy === 'scroll') && defile(el)) return el;
             el = el.parentElement;
         }
-        // Chat pas encore assez rempli pour déborder : rien à compenser de toute façon.
+        // Chat pas encore assez rempli pour déborder : choix provisoire.
         return nomme || null;
     };
 
-    const getScroller = () => {
-        if (!scroller || !scroller.isConnected) scroller = trouverScroller();
-        if (scroller && !scrollersEcoutes.has(scroller)) {
-            scrollersEcoutes.add(scroller);
+    function getScroller() {
+        if (!scroller || !scroller.isConnected || (scrollerProvisoire && !defile(scroller))) {
+            scroller = trouverScroller();
+            scrollerProvisoire = !defile(scroller);
+        }
+        const sc = scroller;
+        if (sc && !scrollersEcoutes.has(sc)) {
+            scrollersEcoutes.add(sc);
             // Chrome « ancre » le défilement : quand du contenu apparaît, il déplace
             // scrollTop de lui-même pour garder le même point de lecture à l'écran. Sur
             // un chat qui révèle ses messages un par un, ce mouvement n'est pas un
             // geste de lecture — mais il en émet l'événement, et notre suivi le prenait
             // pour tel : le glissement s'interrompait dès la première ligne relâchée.
-            scroller.style.overflowAnchor = 'none';
+            sc.style.overflowAnchor = 'none';
             // Seule source fiable de l'intention de lecture : un agrandissement du
             // contenu n'émet aucun événement de défilement, une action humaine si.
-            scroller.addEventListener('scroll', () => {
+            // L'écouteur lit l'élément qu'il écoute, pas la variable partagée, qui peut
+            // désigner entre-temps un autre scroller.
+            sc.addEventListener('scroll', () => {
+                if (sc !== scroller) return;
                 // Nos propres écritures ne disent rien de l'intention de lecture.
-                if (Math.abs(scroller.scrollTop - dernierEcrit) <= 1.5) return;
+                if (Math.abs(sc.scrollTop - dernierEcrit) <= 1.5) return;
                 // Un geste pendant un glissement l'interrompt : on rend la main.
                 arreterGlissement();
-                colleEnBas = scroller.scrollHeight - scroller.scrollTop
-                    - scroller.clientHeight <= SCROLL_EPSILON;
+                colleEnBas = sc.scrollHeight - sc.scrollTop - sc.clientHeight <= SCROLL_EPSILON;
             }, { passive: true });
         }
-        return scroller;
-    };
+        return sc;
+    }
 
     /**
      * Une emote dont on ignorait les proportions vient de se charger : elle a pris sa
      * largeur d'un coup et a pu re-découper la citation. On retient ses proportions
      * pour les prochaines, puis on rattrape le décalage.
      */
-    const onEmoteChargee = (img, nom) => {
+    function onEmoteChargee(img, nom) {
         const connu = emoteIndex.get(nom);
         if (connu && !connu.ratio && img.naturalWidth > 0 && img.naturalHeight > 0) {
             connu.ratio = ratioPlausible(img.naturalWidth / img.naturalHeight);
         }
         if (colleEnBas) recollerEnBas(getScroller());
-    };
+    }
 
     // =========================================================================
     // AFFICHAGE PROGRESSIF
     // Twitch insère les messages par paquets : dans un chat rapide, plusieurs lignes
     // surgissent d'un coup. On les masque au moment même de leur insertion — le rappel
     // de l'observateur s'exécute avant le premier rendu, donc rien ne clignote — puis
-    // on les relâche une par une. Au-delà d'un certain retard on renonce et on montre
-    // tout : étaler davantage ferait décrocher l'affichage du direct.
+    // on les relâche une par une. Quand le retard grandit, on accélère plutôt que de
+    // renoncer : l'affichage reste progressif du début à la fin.
     // =========================================================================
-    // Retard au-delà duquel on accélère au lieu de renoncer. L'ancienne version montrait
-    // tout d'un coup passé ce seuil : sur un chat rapide, une partie des messages
-    // surgissait donc sans progressivité — exactement ce que la fonction doit éviter.
     const AFFICHAGE_RATTRAPAGE_MS = 400;
+    // Plafond du tampon. Au-delà, la boucle ne suit manifestement plus (onglet suspendu,
+    // page gelée) : tout est relâché d'un bloc plutôt que retenu indéfiniment.
+    const AFFICHAGE_MAX = 300;
     const enAttenteAffichage = [];
     let dernierRelache = 0;
 
@@ -1811,97 +2006,198 @@
 
     /**
      * Appelé par la boucle. Rend vrai tant qu'il reste des lignes à relâcher.
-     * Quand le retard grandit, on relâche plusieurs lignes par image plutôt que
-     * d'abandonner : le rythme s'accélère, mais l'affichage reste progressif du début à
-     * la fin. Le nombre est calculé pour résorber le retard en un temps fixe, quelle que
-     * soit la cadence du chat.
+     * Le nombre relâché est calculé pour résorber le retard en un temps fixe, quelle que
+     * soit la cadence du chat — et sur le temps écoulé depuis le dernier relâchement,
+     * pas sur la durée d'une image : avec messageBatchMs au-delà d'une image, le
+     * rattrapage était sinon ralenti d'autant.
      */
-    const relacherEnAttente = (maintenant, dt) => {
+    function relacherEnAttente(maintenant) {
         const attente = enAttenteAffichage.length;
         if (!attente) return false;
-        if (maintenant - dernierRelache < CONFIG.messageBatchMs) return true;
+        const ecoule = maintenant - dernierRelache;
+        if (ecoule < CONFIG.messageBatchMs) return true;
         dernierRelache = maintenant;
 
-        const parImage = Math.max(1, Math.ceil(attente * dt / AFFICHAGE_RATTRAPAGE_MS));
+        // Borné comme dt : une longue pause ne doit pas tout relâcher d'un coup.
+        const pas = Math.min(ecoule, Math.max(100, CONFIG.messageBatchMs));
+        const parImage = Math.max(1, Math.ceil(attente * pas / AFFICHAGE_RATTRAPAGE_MS));
         for (let i = 0; i < parImage && enAttenteAffichage.length; i++) {
             relacherLigne(enAttenteAffichage.shift());
         }
         // Le contenu vient de grandir : le suiveur doit repartir vers le nouveau bas.
         if (colleEnBas) recollerEnBas(getScroller());
         return enAttenteAffichage.length > 0;
-    };
+    }
 
     const differerAffichage = (node) => {
-        if (!CONFIG.messageBatchMs || node.nodeType !== Node.ELEMENT_NODE) return;
-        // Uniquement ce que Twitch dépose à la racine du chat. L'observateur voit aussi
-        // nos propres insertions — bloc de citation, liste des destinataires d'un gift —
-        // et les masquer reviendrait à faire clignoter notre travail. Garde-fou par
-        // précaution : aucun de nos éléments actuels n'atterrit là, mais rien ne le
-        // garantit à l'avenir et le symptôme serait difficile à relier à sa cause.
+        // Rien n'est différé onglet masqué : le relâchement avance au rythme des images,
+        // et il n'y en a plus. Les lignes s'accumulaient sans fin.
+        if (!CONFIG.messageBatchMs || document.hidden) return;
+        // Uniquement ce que Twitch dépose à la racine du chat. Nos propres insertions
+        // ne passent pas par ici (voir nosNoeuds).
         if (node.parentElement !== chatRoot) return;
         if (node.classList.contains('btc-differe')) return;
         node.classList.add('btc-differe');
         enAttenteAffichage.push(node);
+        if (enAttenteAffichage.length > AFFICHAGE_MAX) relacherTout();
         demarrerBoucle();
     };
 
     const flush = () => {
         const batch = queue;
+        const toutReprendre = fileDebordee;
         queue = [];
-        frameScheduled = false;
+        fileDebordee = false;
+        flushPlanifie = false;
+        if (!chatRoot) return;
         // Mesuré ici et non à l'insertion : à ce stade Twitch a déjà fait son propre
         // recollage, l'écart au bas reflète donc bien l'intention de qui lit.
         const sc = getScroller();
         colleEnBas = mesurerCollage(sc);
-        for (const node of batch) {
-            if (node.isConnected) {
-                try { processLine(node); }
-                catch (e) { console.error('[BTC] échec du traitement', e); }
+        if (toutReprendre) {
+            processLine(chatRoot);
+        } else {
+            // Un nœud dont un ancêtre est aussi dans le lot est couvert par le passage de
+            // cet ancêtre : on ne parcourt pas deux fois le même sous-arbre.
+            const lot = new Set(batch.filter((n) => n.isConnected));
+            for (const node of lot) {
+                let p = node.parentElement;
+                while (p && p !== chatRoot && !lot.has(p)) p = p.parentElement;
+                if (!p || p === chatRoot) processLine(node);
             }
         }
         if (colleEnBas) recollerEnBas(sc);
     };
 
-    const enqueue = (node) => {
-        if (queue.length >= QUEUE_MAX) queue.shift();
-        queue.push(node);
-        if (!frameScheduled) {
-            frameScheduled = true;
-            requestAnimationFrame(flush);
-        }
+    const planifierFlush = () => {
+        if (flushPlanifie) return;
+        flushPlanifie = true;
+        // Onglet masqué : le navigateur suspend requestAnimationFrame, pas les minuteries
+        // (bridées, mais elles tournent). Sans ce détour, rien n'était traité avant le
+        // retour au premier plan.
+        if (document.hidden) setTimeout(flush, 100);
+        else requestAnimationFrame(flush);
     };
+
+    const enqueue = (node) => {
+        if (!fileDebordee) {
+            if (queue.length < QUEUE_MAX) {
+                queue.push(node);
+            } else {
+                fileDebordee = true;
+                queue = [];
+            }
+        }
+        planifierFlush();
+    };
+
+    const surVisibilite = () => {
+        if (!document.hidden) return;
+        // Rien ne doit rester masqué derrière un onglet en pause, et un traitement promis
+        // à une image qui ne viendra plus passe par une minuterie.
+        relacherTout();
+        arreterGlissement();
+        if (flushPlanifie) setTimeout(flush, 100);
+    };
+
+    // Classes posées par Twitch et 7TV, sans les nôtres (btc-*), dans un ordre stable.
+    const classesEtrangeres = (valeur) => (valeur || '').split(/\s+/)
+        .filter((c) => c && !c.startsWith('btc-'))
+        .sort()
+        .join(' ');
 
     const onMutations = (mutations) => {
         for (const m of mutations) {
             if (m.type === 'childList') {
                 for (const node of m.addedNodes) {
-                    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                    if (node.nodeType !== Node.ELEMENT_NODE || nosNoeuds.has(node)) continue;
                     differerAffichage(node);
                     enqueue(node);
                 }
             } else if (m.type === 'attributes') {
+                const t = m.target;
+                if (m.attributeName === HIGHLIGHT_LABEL_ATTR) {
+                    stripHighlightLabel(t);
+                    continue;
+                }
+                // Nos propres classes ne disent rien du grade : seul un changement venu de
+                // Twitch ou 7TV justifie de relire le style. Sans ce tri, chaque réponse
+                // déclenchait deux lectures du style calculé.
+                if (m.attributeName === 'class'
+                    && (m.oldValue === t.getAttribute('class')
+                        || classesEtrangeres(m.oldValue) === classesEtrangeres(t.getAttribute('class')))) {
+                    continue;
+                }
                 // 7TV pose ses classes de highlight après l'insertion, avec l'étiquette
                 // de règle : il faut retirer celle-ci et recalculer la couleur d'accent.
-                const t = m.target;
-                if (t.nodeType !== Node.ELEMENT_NODE) continue;
                 stripHighlightLabel(t);
-                if (t.classList?.contains('btc-reply')) applyGradeAccent(t);
+                if (t.classList.contains('btc-reply')) applyGradeAccent(t);
             }
         }
     };
 
-    const start = (root) => {
-        if (observer) observer.disconnect();
-        chatRoot = root;
-        scroller = null;      // la navigation SPA remplace tout l'arbre du chat
-        accentChaine = '';    // et on change de chaîne, donc de couleur d'accent
+    // =========================================================================
+    // CONNEXION AU CONTENEUR DU CHAT ET NAVIGATION SPA
+    // =========================================================================
+    const findChatRoot = () => {
+        for (const sel of SEL.chatRoot) {
+            const el = document.querySelector(sel);
+            if (el) return el;
+        }
+        return null;
+    };
+
+    // Clé de chaîne : dit si l'on a changé de chaîne, donc d'emotes et de couleur
+    // d'accent. Les sous-pages d'une même chaîne (/x, /x/about, /popout/x/chat) la
+    // partagent ; une query string ou un # ne la changent pas.
+    const PREFIXES_CHAINE = new Set(['popout', 'embed', 'moderator']);
+    const cleDeChaine = () => {
+        const seg = location.pathname.split('/').filter(Boolean);
+        return (PREFIXES_CHAINE.has(seg[0]) ? seg[1] : seg[0]) || '';
+    };
+    let chaineCourante = null;
+
+    /** Oublie ce qui est propre à une chaîne : emotes, couleur d'accent, gifts en cours. */
+    const oublierChaine = () => {
+        emoteIndex.clear();
+        gifts.reset();
+        accentChaine = null;
         cartesNeutres.clear();
+    };
+
+    /** Se détache du conteneur courant et solde ce qui lui appartenait. */
+    const teardown = () => {
+        if (observer) { observer.disconnect(); observer = null; }
+        clearTimeout(selfCheckTimer);
+        diag.lignes = diag.reponses = diag.reponsesRatees = diag.notices = 0;
+        dejaComptes = { lignes: new WeakSet(), reponses: new WeakSet(), reponsesRatees: new WeakSet() };
+        queue = [];
+        fileDebordee = false;
+        flushPlanifie = false;
+        relacherTout();
+        arreterGlissement();
+        gifts.reset();
+        cartesNeutres.clear();
+        chatRoot = null;
+        scroller = null;
+    };
+
+    const start = (root) => {
+        teardown();
+        chatRoot = root;
+        const cle = cleDeChaine();
+        if (cle !== chaineCourante) { oublierChaine(); chaineCourante = cle; }
+        vitesseContenu = 0;
         observer = new MutationObserver(onMutations);
         observer.observe(root, {
             childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ['class', 'data-seventv-processed']
+            // Ancienne valeur : distingue nos propres classes de celles de Twitch et 7TV.
+            attributeOldValue: true,
+            // L'étiquette 7TV est observée pour elle-même : elle peut être posée sans
+            // qu'aucune classe ne change.
+            attributeFilter: ['class', 'data-seventv-processed', HIGHLIGHT_LABEL_ATTR]
         });
         // Relevé initial : sans lui, une emote chargée avant le premier lot traité
         // recollerait le chat en bas alors que rien ne dit qu'il y était.
@@ -1911,49 +2207,42 @@
         log('démarré sur', root.className);
     };
 
-    const findChatRoot = () => {
-        for (const sel of SEL.chatRoot) {
-            const el = document.querySelector(sel);
-            if (el) return el;
+    const RACINE_ABSENTE_ALERTE_MS = 60000;
+    let absenceDepuis = 0;
+    let absenceSignalee = false;
+
+    /**
+     * Garde la connexion sur le bon conteneur. Appelée chaque seconde et après chaque
+     * navigation : le conteneur peut être remplacé sans que l'URL change (colonne repliée
+     * puis rouverte, mode cinéma…), et l'URL peut changer sans que le conteneur change
+     * (sous-page de la chaîne, paramètres). Bon marché tant que le conteneur est en
+     * place : un simple isConnected, la recherche dans la page n'a lieu qu'en son absence.
+     */
+    const surveillerRacine = () => {
+        if (chatRoot && chatRoot.isConnected) {
+            // Même conteneur, mais peut-être une autre chaîne si Twitch le réutilise.
+            const cle = cleDeChaine();
+            if (cle !== chaineCourante) { oublierChaine(); chaineCourante = cle; }
+            return;
         }
-        return null;
-    };
-
-    let retryTimer = null;
-    const connect = () => {
-        clearInterval(retryTimer);
         const found = findChatRoot();
-        if (found) { start(found); return; }
-        let attempts = 0;
-        retryTimer = setInterval(() => {
-            const root = findChatRoot();
-            if (root) { clearInterval(retryTimer); start(root); }
-            else if (++attempts > 60) {
-                clearInterval(retryTimer);
-                // Trou repéré après coup : l'auto-diagnostic n'était planifié que depuis
-                // start(). Si le conteneur du chat n'est jamais trouvé, start() n'est
-                // jamais appelé et la panne la plus grave restait muette — exactement ce
-                // que ce contrôle est censé empêcher.
-                if (document.querySelector(PAGE_CHAT_SELECTORS)) {
-                    runSelfCheck({ force: true });
-                }
-            }
-        }, 1000);
-    };
-
-    // =========================================================================
-    // NAVIGATION SPA
-    // =========================================================================
-    const teardown = () => {
-        if (observer) { observer.disconnect(); observer = null; }
-        clearInterval(retryTimer);
-        clearTimeout(selfCheckTimer);
-        diag.lignes = diag.reponses = diag.reponsesRatees = diag.notices = 0;
-        queue = [];
-        frameScheduled = false;
-        chatRoot = null;
-        emoteIndex.clear();
-        gifts.reset();
+        if (found) {
+            log('conteneur du chat', chatRoot ? 'remplacé' : 'trouvé');
+            start(found);
+            absenceDepuis = 0;
+            absenceSignalee = false;
+            return;
+        }
+        if (chatRoot) { log('conteneur du chat perdu'); teardown(); }
+        if (!absenceDepuis) {
+            absenceDepuis = Date.now();
+        } else if (!absenceSignalee && Date.now() - absenceDepuis > RACINE_ABSENTE_ALERTE_MS
+                   && document.querySelector(PAGE_CHAT_SELECTORS)) {
+            // Page de chaîne, mais aucun conteneur reconnu depuis une minute : la panne la
+            // plus grave, qui ne doit pas rester muette.
+            absenceSignalee = true;
+            runSelfCheck({ force: true });
+        }
     };
 
     const watchNavigation = () => {
@@ -1961,14 +2250,17 @@
         const onChange = () => {
             if (location.href === lastUrl) return;
             lastUrl = location.href;
-            teardown();
-            setTimeout(connect, 600);
+            absenceDepuis = 0;
+            absenceSignalee = false;
+            // Plus de démontage systématique : la surveillance décide s'il faut se
+            // reconnecter. Un passage rapide après la navigation, puis la ronde régulière.
+            setTimeout(surveillerRacine, 300);
         };
         window.addEventListener('popstate', onChange);
         const push = history.pushState;
         const replace = history.replaceState;
-        history.pushState = function (...args) { push.apply(this, args); onChange(); };
-        history.replaceState = function (...args) { replace.apply(this, args); onChange(); };
+        history.pushState = function (...args) { const r = push.apply(this, args); onChange(); return r; };
+        history.replaceState = function (...args) { const r = replace.apply(this, args); onChange(); return r; };
     };
 
     // =========================================================================
@@ -1976,7 +2268,9 @@
     // =========================================================================
     injectCSS();
     watchNavigation();
-    connect();
+    document.addEventListener('visibilitychange', surVisibilite);
+    surveillerRacine();
+    setInterval(surveillerRacine, 1000);
 
     // Point d'entrée pour bidouiller la config depuis la console.
     window.__BTC = {
@@ -1991,6 +2285,7 @@
                 delete q.dataset.btcQuote;
             }
             processLine(chatRoot);
+            rafraichirNotices();
         },
         emotes: emoteIndex,
         gifts,
@@ -2011,13 +2306,15 @@
                 reponsesTraitees: document.querySelectorAll('.btc-reply').length,
                 emotesIndexees: emoteIndex.size,
                 cssInjecte: !!document.getElementById('btc-styles'),
+                conteneurConnecte: !!chatRoot && chatRoot.isConnected,
                 // Rendu progressif : de quoi voir d'un coup d'œil si une boucle reste
                 // en route ou si des lignes sont restées masquées.
                 glissementMs: CONFIG.smoothScrollMs,
                 batchMs: CONFIG.messageBatchMs,
                 glissementEnCours: glissementActif,
                 boucleActive: frame !== null,
-                lignesEnAttente: enAttenteAffichage.length
+                lignesEnAttente: enAttenteAffichage.length,
+                vitesseChat: Math.round(vitesseContenu)
             };
             console.table(info);
             return info;
@@ -2033,25 +2330,34 @@
             const quote = document.querySelector('.btc-reply-quote');
             if (!quote) { console.warn('[BTC] aucune réponse à l\'écran'); return null; }
             const matches = [];
-            for (const sheet of document.styleSheets) {
-                let rules;
-                try { rules = sheet.cssRules; }
-                catch (e) { matches.push({ origine: sheet.href || '(inline)', erreur: 'illisible (CORS)' }); continue; }
-                if (!rules) continue;
+            // Les règles groupées (@media, @supports, @layer, @container) sont parcourues
+            // aussi : la règle gagnante peut s'y trouver.
+            const parcourir = (rules, origine) => {
                 for (const rule of rules) {
-                    if (!rule.style || !rule.selectorText) continue;
-                    const value = rule.style.getPropertyValue('font-size');
+                    if (!rule.selectorText) {
+                        if (rule.cssRules) parcourir(rule.cssRules, origine);
+                        continue;
+                    }
+                    const value = rule.style && rule.style.getPropertyValue('font-size');
                     if (!value) continue;
                     let hit = false;
-                    try { hit = quote.matches(rule.selectorText); } catch (e) { /* sélecteur exotique */ }
+                    try { hit = quote.matches(rule.selectorText); } catch { /* sélecteur exotique */ }
                     if (!hit) continue;
                     matches.push({
-                        origine: sheet.href ? sheet.href.split('/').pop() : (sheet.ownerNode?.id || '(inline)'),
+                        origine,
                         selecteur: rule.selectorText,
                         valeur: value,
                         important: rule.style.getPropertyPriority('font-size') === 'important'
                     });
                 }
+            };
+            for (const sheet of document.styleSheets) {
+                let rules;
+                try { rules = sheet.cssRules; } catch {
+                    matches.push({ origine: sheet.href || '(inline)', erreur: 'illisible (CORS)' });
+                    continue;
+                }
+                if (rules) parcourir(rules, sheet.href ? sheet.href.split('/').pop() : (sheet.ownerNode?.id || '(inline)'));
             }
             const applique = getComputedStyle(quote).fontSize;
             console.log(`[BTC] taille réellement appliquée : ${applique}`);

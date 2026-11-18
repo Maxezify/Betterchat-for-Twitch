@@ -6,9 +6,31 @@
 | Taille | 2 064 lignes, 103 825 octets, fins de ligne CRLF |
 | Empreinte | sha256 `d7c21400a69982b9b3e8e39495db574b024b9f9aaad6c33a5db86e60aaefd0d8` |
 | Date | 18 novembre 2026 |
-| Périmètre | Audit seul : le script n'a pas été modifié. |
+| Périmètre | Audit de la v15.24.0. Les corrections sont suivies au §0. |
 
 Les numéros de ligne (`L1184`) renvoient à cette version. Chaque lien ouvre la ligne sur GitHub.
+
+---
+
+## 0. Suivi des corrections — v15.25.0 (branche `dev`)
+
+| Statut | Points |
+|---|---|
+| Corrigé | 41 — tous les bugs (B1-B9), R1-R4, R6-R10, P1-P3, P5, M1-M10, Q1-Q3, Q5, D1-D4, S2 |
+| Partiel | 3 — P6, Q4, Q6 |
+| Reporté | 2 — R5 (mode d'insertion dans le DOM), P4 (boucle unique lecture/écriture) |
+| Conservé | 4 — Q7, S4, S5, S6 |
+| Action de ta part | 1 — S3 (protection de la branche `prod`) |
+| Positif | 1 — S1 |
+
+Le détail point par point (statut, justification, tests associés) est dans
+[`tests/suivi.json`](tests/suivi.json). La suite `tests/` (46 cas, `npm test`) remplace le banc
+de reproduction du §10 : la v15.24.0 échoue à 45 cas sur 46, la v15.25.0 les passe tous.
+Elle tourne automatiquement avant chaque commit qui touche au script (hook `pre-commit`) et
+sur GitHub à chaque push vers `dev` ou `prod`.
+
+La recette manuelle à faire sur Twitch avant le passage en `prod` est dans
+[`tests/recette.json`](tests/recette.json).
 
 ---
 
@@ -21,7 +43,7 @@ l'animation dépend du temps écoulé, pas de la fréquence de l'écran. Le conc
 d'auto-diagnostic est une bonne idée.
 
 L'audit relève toutefois **52 points** (§3). **13 comportements fautifs sont reproduits** sur le
-script tel quel par un banc automatisé (`audit/repro.js`, voir §10). Les plus importants :
+script tel quel par un banc automatisé (voir §10). Les plus importants :
 
 | # | Constat | Conséquence |
 |---|---|---|
@@ -639,14 +661,12 @@ Gains négligeables pris un par un, listés pour être complet :
 
 ## 10. Banc de reproduction
 
-`audit/repro.js` charge `BetterTwitchChat.js` sans modification dans Chromium, sur un DOM
-simulé, et affiche pour chaque constat `BUG PRÉSENT` ou `OK`.
+> Historique. Ce banc, `audit/repro.js`, a servi à l'audit. Il est remplacé par la suite
+> `tests/` (voir §0) : `npm install`, puis `npm test` pour la copie de travail, ou
+> `npm run test:prod` pour la branche `prod`.
 
-```bash
-npm install --no-save playwright
-npx playwright install chromium
-node audit/repro.js
-```
+Le banc chargeait `BetterTwitchChat.js` sans modification dans Chromium, sur un DOM
+simulé, et affichait pour chaque constat `BUG PRÉSENT` ou `OK`.
 
 Résultat sur la v15.24.0 :
 
@@ -668,9 +688,8 @@ BUG PRÉSENT  R3   attribut toujours présent=true
 13/13 comportement(s) fautif(s) reproduit(s).
 ```
 
-`BTC_SCRIPT=chemin/vers/version.js node audit/repro.js` teste une autre version du fichier.
-Une copie corrigée (non publiée) passe les 13 tests au vert. Ce banc pourra donc servir de
-non-régression pendant les corrections sur `dev`.
+Une copie corrigée passait les 13 tests au vert. Ces cas sont repris, avec les mêmes
+identifiants, dans `tests/cas.js`.
 
 ---
 

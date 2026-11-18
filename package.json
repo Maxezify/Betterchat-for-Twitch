@@ -1,0 +1,16 @@
+{
+  "name": "betterchat-for-twitch",
+  "private": true,
+  "description": "Banc de test du userscript BetterTwitchChat (+ 7TV)",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node tests/banc.js",
+    "test:prod": "node tests/banc.js --ref origin/prod",
+    "lint": "eslint --max-warnings 0 BetterTwitchChat.user.js",
+    "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "devDependencies": {
+    "eslint": "10.1.0",
+    "playwright": "1.63.0"
+  }
+}
