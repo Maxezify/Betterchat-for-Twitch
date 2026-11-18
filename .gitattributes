@@ -1,0 +1,3 @@
+# Le script est livré en fins de ligne CRLF. Aucune conversion par Git, quel que soit le
+# réglage core.autocrlf du poste : ce qui est commité est exactement ce qui est distribué.
+BetterTwitchChat.js -text
