@@ -23,9 +23,6 @@ Le script installé se met ensuite à jour tout seul depuis `prod`. Son nom et s
 noms n'ont pas changé : il remplace une installation faite depuis l'ancien dépôt
 `BetterTwitchChat-with-7tv` au lieu de s'y ajouter.
 
-> Tant que la v15.25.0 n'est pas fusionnée dans `prod`, le lien stable n'existe pas encore
-> sous ce nom : la v15.24.0 y est publiée sous `BetterTwitchChat.js`.
-
 ## Branches et livraison
 
 | Branche | Rôle |

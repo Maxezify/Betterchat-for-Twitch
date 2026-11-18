@@ -1,6 +1,6 @@
 # Journal des versions
 
-## 15.25.0 — en test sur `dev`
+## 15.25.0 — 18 novembre 2026
 
 Corrections issues de l'audit (`AUDIT.md`). Aucune nouvelle fonctionnalité.
 
