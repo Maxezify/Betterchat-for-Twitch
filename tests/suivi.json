@@ -63,7 +63,7 @@
 
     { "id": "S1", "severite": "Info", "categorie": "Sécurité", "titre": "Aucun innerHTML, contenu inséré en texte", "statut": "positif", "tests": [], "note": "" },
     { "id": "S2", "severite": "Moyen", "categorie": "Sécurité", "titre": "Canal de mise à jour sur l'ancien dépôt", "statut": "corrigé", "tests": ["S2"], "note": "@updateURL sur prod/BetterTwitchChat.user.js de ce dépôt ; @name et @namespace inchangés. Effectif à la fusion dans prod." },
-    { "id": "S3", "severite": "Moyen", "categorie": "Sécurité", "titre": "Protéger la branche prod", "statut": "action", "tests": [], "note": "Settings → Rules → Rulesets : règle « prod » active, pull request obligatoire (0 approbation), vérification « banc » requise, suppression et force-push bloqués." },
+    { "id": "S3", "severite": "Moyen", "categorie": "Sécurité", "titre": "Protéger la branche prod", "statut": "corrigé", "tests": [], "note": "Ruleset « prod » actif (vérifié par l'API GitHub le 18/11) : pull request obligatoire (0 approbation), vérification « banc » requise et à jour, suppression et force-push bloqués, aucune exception." },
     { "id": "S4", "severite": "Info", "categorie": "Sécurité", "titre": "window.__BTC exposé", "statut": "conservé", "tests": [], "note": "Outil de diagnostic documenté dans le README." },
     { "id": "S5", "severite": "Info", "categorie": "Sécurité", "titre": "@noframes absent", "statut": "conservé", "tests": [], "note": "Le script continue de tourner dans les iframes www.twitch.tv (chat intégré). À trancher." },
     { "id": "S6", "severite": "Info", "categorie": "Sécurité", "titre": "@icon via le service de Google", "statut": "conservé", "tests": [], "note": "" }

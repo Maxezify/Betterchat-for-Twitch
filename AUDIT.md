@@ -16,11 +16,10 @@ Les numéros de ligne (`L1184`) renvoient à cette version. Chaque lien ouvre la
 
 | Statut | Points |
 |---|---|
-| Corrigé | 41 — tous les bugs (B1-B9), R1-R4, R6-R10, P1-P3, P5, M1-M10, Q1-Q3, Q5, D1-D4, S2 |
+| Corrigé | 42 — tous les bugs (B1-B9), R1-R4, R6-R10, P1-P3, P5, M1-M10, Q1-Q3, Q5, D1-D4, S2, S3 |
 | Partiel | 3 — P6, Q4, Q6 |
 | Reporté | 2 — R5 (mode d'insertion dans le DOM), P4 (boucle unique lecture/écriture) |
 | Conservé | 4 — Q7, S4, S5, S6 |
-| Action de ta part | 1 — S3 (protection de la branche `prod`) |
 | Positif | 1 — S1 |
 
 Le détail point par point (statut, justification, tests associés) est dans
