@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Banc de test obligatoire avant tout commit qui touche au script, au banc ou à ESLint.
-# Il teste la version INDEXÉE (celle qui va être commitée), pas la copie de travail.
+# Banc de test obligatoire avant tout commit qui touche au script, au banc, à la
+# construction ou à ESLint. Il teste la version INDEXÉE (celle qui va être commitée), pas
+# la copie de travail : d'abord la source commentée, puis la version optimisée pour la prod
+# construite à partir d'elle.
 # Activé par `npm install` (script prepare) ou : git config core.hooksPath .githooks
 set -euo pipefail
 
 racine="$(git rev-parse --show-toplevel)"
 cd "$racine"
 
-if ! git diff --cached --name-only | grep -qE '^(BetterTwitchChat\.user\.js|eslint\.config\.js|package\.json|tests/)'; then
+if ! git diff --cached --name-only | grep -qE '^(BetterTwitchChat\.user\.js|eslint\.config\.js|package(-lock)?\.json|tests/|scripts/)'; then
     exit 0
 fi
 
@@ -29,11 +31,20 @@ if git diff --cached --name-only | grep -qx 'BetterTwitchChat.user.js'; then
     fi
 fi
 
-echo "▶ Banc de test sur la version indexée…"
+export NODE_PATH="$racine/node_modules${NODE_PATH:+:$NODE_PATH}"
 mkdir -p "$racine/tests/resultats"
-if ! NODE_PATH="$racine/node_modules${NODE_PATH:+:$NODE_PATH}" \
-     node "$tmp/tests/banc.js" --json "$racine/tests/resultats/pre-commit.json"; then
-    echo "✗ Commit refusé : le banc de test échoue (détail ci-dessus, rapport dans tests/resultats/pre-commit.json)." >&2
+
+echo "▶ Banc de test sur la source indexée…"
+if ! node "$tmp/tests/banc.js" --json "$racine/tests/resultats/pre-commit.json"; then
+    echo "✗ Commit refusé : le banc échoue sur la source (rapport : tests/resultats/pre-commit.json)." >&2
     exit 1
 fi
-echo "✓ Banc de test réussi."
+
+echo "▶ Construction et banc de la version optimisée…"
+if ! node "$tmp/scripts/build.js" --entree "$tmp/BetterTwitchChat.user.js" --sortie "$tmp/dist/BetterTwitchChat.user.js" \
+   || ! node "$tmp/tests/banc.js" --script "$tmp/dist/BetterTwitchChat.user.js" --source "$tmp/BetterTwitchChat.user.js" \
+            --json "$racine/tests/resultats/pre-commit-build.json"; then
+    echo "✗ Commit refusé : la version optimisée ne passe pas le banc (rapport : tests/resultats/pre-commit-build.json)." >&2
+    exit 1
+fi
+echo "✓ Banc de test réussi sur la source et sur la version optimisée."

@@ -443,7 +443,7 @@ stat('Q4', ['Q4'], 'CSS dédoublonné, nombres magiques nommés', ({ SCRIPT }) =
 
 stat('Q5', ['Q5'], 'Version : en-tête et repli identiques, lue via GM_info', ({ SCRIPT }) => {
     const entete = (SCRIPT.match(/@version\s+(\S+)/) || [])[1];
-    const repli = (SCRIPT.match(/const VERSION = [\s\S]{0,140}?'(\d+\.\d+\.\d+)'/) || [])[1];
+    const repli = (SCRIPT.match(/const VERSION\s*=[\s\S]{0,160}?['"](\d+\.\d+\.\d+)['"]/) || [])[1];
     const gm = /GM_info\.script\.version/.test(SCRIPT);
     return { ok: !!entete && entete === repli && gm, details: `@version=${entete}, repli=${repli}, GM_info=${gm}` };
 });
@@ -464,5 +464,29 @@ stat('LINT', ['Q2', 'Q3', 'M2'], 'ESLint : aucun avertissement', async ({ eslint
     if (r === null) return { ok: null, details: 'ESLint absent (npm install)' };
     return { ok: r.length === 0, details: r.length ? `${r.length} avertissement(s) : ${r.slice(0, 3).join(' | ')}` : '0 avertissement' };
 });
+
+// =============================================================================
+// Version optimisée (scripts/build.js)
+// =============================================================================
+dyn('BUILD', ['Livraison'], 'Version optimisée : même feuille de style que la source', async ({ ouvrir, SOURCE }) => {
+    if (!SOURCE) return { ok: null, details: 'source commentée introuvable (--source)' };
+    // Espaces normalisés hors des chaînes entre guillemets : Chrome garde tels quels ceux
+    // d'une valeur contenant var(), sans effet sur le rendu ; dans une chaîne, ils comptent.
+    const regles = (page) => page.evaluate(() => [...document.getElementById('btc-styles').sheet.cssRules].map((r) => r.cssText
+        .split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/)
+        .map((morceau, i) => (i % 2 ? morceau : morceau.replace(/\s+/g, ' ')))
+        .join('')));
+    const optimisee = await ouvrir(regles);
+    const source = await ouvrir(regles, { script: SOURCE });
+    const ecart = optimisee.findIndex((r, i) => r !== source[i]);
+    const ok = optimisee.length === source.length && ecart === -1;
+    return { ok, details: ok ? `${optimisee.length} règles CSS identiques à la source`
+        : `${optimisee.length} règles contre ${source.length} ; premier écart : ${String(optimisee[ecart] || '').slice(0, 80)}` };
+});
+
+/** Cas propres à une seule variante : les autres les marquent « ignoré ». */
+const seulementSur = (variante, ...ids) => ids.forEach((id) => { CAS.find((c) => c.id === id).variante = variante; });
+seulementSur('source', 'Q1', 'LINT');
+seulementSur('optimisée', 'BUILD');
 
 module.exports = { CAS };

@@ -50,8 +50,10 @@ Corrections issues de l'audit (`AUDIT.md`). Aucune nouvelle fonctionnalité.
   sont inchangés pour que l'installation existante soit mise à jour, pas doublée. (S2)
 
 ### Outillage
-- Banc de test `tests/` (46 cas), hook `pre-commit` qui le lance avant chaque commit du
-  script, vérification GitHub Actions sur `dev` et `prod`.
+- Banc de test `tests/`, hook `pre-commit` qui le lance avant chaque commit du script,
+  vérification GitHub Actions sur `dev` et `prod`.
+- Version optimisée pour `prod` (`npm run build`) : commentaires et espaces retirés, en-tête
+  et noms conservés ; testée par le même banc, feuille de style comparée à la source.
 
 ## 15.24.0
 

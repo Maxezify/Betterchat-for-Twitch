@@ -31,26 +31,42 @@ noms n'ont pas changé : il remplace une installation faite depuis l'ancien dép
 | Branche | Rôle |
 |---|---|
 | `dev`  | Développement. Corrections et évolutions arrivent ici d'abord. |
-| `prod` | Version distribuée aux utilisateurs. Ne reçoit que des fusions depuis `dev`, après le banc de test et la recette manuelle (`tests/recette.json`). |
+| `prod` | Version distribuée aux utilisateurs : la **version optimisée** (sans commentaires ni espaces), construite depuis `dev` par `npm run build`. Ne reçoit que des pull requests dont le banc de test passe. |
+
+## Livraison en prod
+
+La source commentée vit sur `dev`. `prod` reçoit le même code, sans commentaires ni espaces
+(environ 43 Ko au lieu de 116 Ko) : l'en-tête `==UserScript==` est gardé tel quel, les noms
+ne sont pas raccourcis, le code n'est pas réécrit. Le banc vérifie que cette version passe les
+mêmes cas que la source et produit exactement la même feuille de style.
+
+1. Partir de `prod` : `git switch -c release/vX.Y.Z origin/prod`.
+2. Reprendre l'arbre de `dev` : `git checkout origin/dev -- .`.
+3. Construire et remplacer le script : `npm run build`, puis copier
+   `dist/BetterTwitchChat.user.js` sur `BetterTwitchChat.user.js`.
+4. Commiter (le hook teste la version optimisée), pousser, ouvrir une pull request vers `prod`.
+   Elle se fusionne une fois la vérification `banc` au vert.
 
 ## Banc de test
 
 ```bash
 npm install                     # dépendances + activation du hook pre-commit
 npx playwright install chromium # navigateur de test, une fois
-npm test                        # banc complet sur la copie de travail
+npm test                        # banc complet sur la source commentée
+npm run test:build              # construit la version optimisée et la passe au banc
 npm run test:prod               # même banc sur la branche prod, pour comparer
 npm run lint                    # ESLint seul
 ```
 
 Le banc charge le script dans Chromium, sur une imitation du DOM du chat Twitch, et vérifie
-46 cas reliés aux points de l'audit (`tests/cas.js`). Il produit un rapport JSON dans
+les cas reliés aux points de l'audit (`tests/cas.js`). Il produit un rapport JSON dans
 `tests/resultats/`.
 
-**Il tourne avant chaque commit** qui touche au script, au banc ou à la configuration
-ESLint : le hook `.githooks/pre-commit` teste la version indexée, celle qui va être
-commitée, et refuse le commit si un cas échoue. GitHub Actions relance le même banc à
-chaque push vers `dev` ou `prod`.
+**Il tourne avant chaque commit** qui touche au script, au banc, à la construction ou à la
+configuration ESLint : le hook `.githooks/pre-commit` teste la version indexée (celle qui
+va être commitée), d'abord la source puis la version optimisée, et refuse le commit si un
+cas échoue. GitHub Actions relance les deux à chaque push et à chaque pull request vers
+`dev` ou `prod` (vérification `banc`).
 
 ## Réglages et diagnostic
 
@@ -69,4 +85,3 @@ __BTC.config.reply.style = 'card'; __BTC.reload()   // tester un réglage à cha
 - [`AUDIT.md`](AUDIT.md) : audit complet de la v15.24.0 et suivi des corrections (§0).
 - [`CHANGELOG.md`](CHANGELOG.md) : journal des versions.
 - [`tests/suivi.json`](tests/suivi.json) : statut de chaque point de l'audit.
-- [`tests/recette.json`](tests/recette.json) : vérifications manuelles avant `prod`.

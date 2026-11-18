@@ -8,6 +8,9 @@
  *   node tests/banc.js --script chemin.js   teste un fichier quelconque
  *   node tests/banc.js --seulement B1,R2    ne lance que certains cas
  *   node tests/banc.js --json sortie.json   écrit le rapport à cet endroit
+ *   node tests/banc.js --script dist/BetterTwitchChat.user.js
+ *                                           teste la version optimisée (npm run test:build) ;
+ *                                           --source désigne la source commentée à comparer
  *
  * Le rapport JSON (tests/resultats/<étiquette>.json par défaut) alimente le tableau de
  * bord. Code de sortie 1 si un cas échoue : c'est ce qui bloque le commit (hook
@@ -53,6 +56,11 @@ if (ref) {
     SCRIPT = fs.readFileSync(fichier, 'utf8');
 }
 const version = (SCRIPT.match(/@version\s+(\S+)/) || [])[1] || '?';
+// La version optimisée (scripts/build.js) porte cette ligne. Les cas qui ne concernent que
+// la source commentée (place des commentaires, ESLint) y sont ignorés, et inversement.
+const VARIANTE = /^\/\/ Construit par scripts\/build\.js/m.test(SCRIPT) ? 'optimisée' : 'source';
+const cheminSource = opt('--source') || path.join(RACINE, 'BetterTwitchChat.user.js');
+const SOURCE = VARIANTE === 'optimisée' && fs.existsSync(cheminSource) ? fs.readFileSync(cheminSource, 'utf8') : null;
 
 // ---------------------------------------------------------------- ESLint (facultatif)
 const eslint = async () => {
@@ -69,7 +77,7 @@ const eslint = async () => {
     const navigateur = await chromium.launch();
 
     /** Ouvre une page de test, y charge le script, puis appelle fn(page, journal). */
-    const ouvrir = async (fn, { before, page: optionsPage } = {}) => {
+    const ouvrir = async (fn, { before, page: optionsPage, script = SCRIPT } = {}) => {
         const context = await navigateur.newContext();
         const page = await context.newPage();
         const journal = { errors: [], consoleErrors: [], logs: [] };
@@ -83,7 +91,7 @@ const eslint = async () => {
         await page.addInitScript(HELPERS);
         await page.goto(URL_PAGE);
         if (before) await page.evaluate(before);
-        await page.addScriptTag({ content: SCRIPT });
+        await page.addScriptTag({ content: script });
         await page.evaluate(() => window.__mk.frames(3));
         try { return await fn(page, journal); } finally { await context.close(); }
     };
@@ -95,7 +103,9 @@ const eslint = async () => {
         const t0 = Date.now();
         let r;
         try {
-            r = await cas.run({ ouvrir, SCRIPT, eslint });
+            r = cas.variante && cas.variante !== VARIANTE
+                ? { ok: null, details: cas.variante === 'source' ? 'vérifié sur la source commentée' : 'concerne la version optimisée' }
+                : await cas.run({ ouvrir, SCRIPT, SOURCE, eslint });
         } catch (e) {
             r = { ok: undefined, details: `erreur du test : ${String(e.message || e).split('\n')[0]}` };
         }
@@ -115,6 +125,7 @@ const eslint = async () => {
         commit: git('rev-parse', '--short', ref || 'HEAD'),
         script: ref ? fichier : path.relative(process.cwd(), fichier),
         version,
+        variante: VARIANTE,
         navigateur: `Chromium ${versionNavigateur}`,
         dureeMs: Date.now() - debut,
         resume: { total: resultats.length, ok: compte('ok'), echec: compte('echec'), erreur: compte('erreur'), ignore: compte('ignore') },
@@ -127,7 +138,7 @@ const eslint = async () => {
     fs.writeFileSync(sortie, JSON.stringify(rapport, null, 2));
 
     const { ok, echec, erreur, ignore, total } = rapport.resume;
-    console.log(`\n${ok}/${total} réussis, ${echec} échec(s), ${erreur} erreur(s), ${ignore} ignoré(s) — v${version}, ${rapport.dureeMs} ms`);
+    console.log(`\n${ok}/${total} réussis, ${echec} échec(s), ${erreur} erreur(s), ${ignore} ignoré(s) — v${version} (${VARIANTE}), ${rapport.dureeMs} ms`);
     console.log(`Rapport : ${path.relative(process.cwd(), sortie) || sortie}`);
     process.exit(echec || erreur ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

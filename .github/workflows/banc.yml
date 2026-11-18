@@ -19,9 +19,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm test -- --json tests/resultats/ci.json
+      - name: Banc sur la source commentée
+        run: npm test -- --json tests/resultats/ci.json
+      - name: Construction et banc de la version optimisée
+        run: npm run test:build
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: resultats-banc
           path: tests/resultats/
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: version-optimisee
+          path: dist/BetterTwitchChat.user.js
