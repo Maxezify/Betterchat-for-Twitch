@@ -46,7 +46,7 @@ if (ref) {
             break;
         } catch { /* nom suivant */ }
     }
-    if (!SCRIPT) { console.error(`Aucun script trouvé dans ${ref}.`); process.exit(2); }
+    if (!SCRIPT) { console.error(`Aucun script trouvé dans ${ref}. Branche distante absente ? Lancer : git fetch origin`); process.exit(2); }
 } else {
     fichier = fichier || NOMS.map((n) => path.join(RACINE, n)).find((p) => fs.existsSync(p));
     if (!fichier) { console.error('Script introuvable.'); process.exit(2); }

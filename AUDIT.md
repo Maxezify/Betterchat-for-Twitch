@@ -25,7 +25,7 @@ Les numéros de ligne (`L1184`) renvoient à cette version. Chaque lien ouvre la
 
 Le détail point par point (statut, justification, tests associés) est dans
 [`tests/suivi.json`](tests/suivi.json). La suite `tests/` (46 cas, `npm test`) remplace le banc
-de reproduction du §10 : la v15.24.0 échoue à 45 cas sur 46, la v15.25.0 les passe tous.
+de reproduction du §10 : la v15.24.0 échoue aux 46 cas, la v15.25.0 les passe tous.
 Elle tourne automatiquement avant chaque commit qui touche au script (hook `pre-commit`) et
 sur GitHub à chaque push vers `dev` ou `prod`.
 
