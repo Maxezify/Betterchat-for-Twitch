@@ -7,6 +7,7 @@
     "test": "node tests/banc.js",
     "test:build": "node scripts/build.js && node tests/banc.js --script dist/BetterTwitchChat.user.js --json tests/resultats/build.json",
     "test:prod": "node tests/banc.js --ref origin/prod",
+    "audit:reproduction": "node tests/reproduction-15.26.js",
     "build": "node scripts/build.js",
     "lint": "eslint --max-warnings 0 BetterTwitchChat.user.js",
     "prepare": "git config core.hooksPath .githooks || true"

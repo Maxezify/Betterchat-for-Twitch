@@ -1,0 +1,377 @@
+{
+  "audit": "15.26.0",
+  "commit": "7850530",
+  "date": "2026-11-19",
+  "document": "AUDIT-15.26.md",
+  "reproduction": "tests/reproduction-15.26.js",
+  "statuts": {
+    "ouvert": "constat relevé, pas encore traité",
+    "corrigé": "corrigé et couvert par le banc",
+    "positif": "point fort à conserver"
+  },
+  "items": [
+    {
+      "id": "B1",
+      "severite": "Moyen",
+      "categorie": "Bug",
+      "titre": "Repère « Aller au message » invisible (!important contre animation)",
+      "preuve": "reproduction B1, contre-épreuve",
+      "statut": "ouvert",
+      "reproduction": "B1"
+    },
+    {
+      "id": "B2",
+      "severite": "Faible",
+      "categorie": "Bug",
+      "titre": "Pagination de l'historique : messages perdus quand les horodatages sont égaux",
+      "preuve": "reproduction B2",
+      "statut": "ouvert",
+      "reproduction": "B2"
+    },
+    {
+      "id": "B3",
+      "severite": "Moyen",
+      "categorie": "Bug",
+      "titre": "Moments forts effacés au bout de deux heures",
+      "preuve": "reproduction B3",
+      "statut": "ouvert",
+      "reproduction": "B3"
+    },
+    {
+      "id": "B4",
+      "severite": "Moyen",
+      "categorie": "Bug",
+      "titre": "Pouls non remis à zéro au changement de chaîne",
+      "preuve": "reproduction B4",
+      "statut": "ouvert",
+      "reproduction": "B4"
+    },
+    {
+      "id": "B5",
+      "severite": "Moyen",
+      "categorie": "Bug",
+      "titre": "Réglages appliqués aux seuls nouveaux messages, ou sans retour arrière",
+      "preuve": "reproduction B5",
+      "statut": "ouvert",
+      "reproduction": "B5"
+    },
+    {
+      "id": "B6",
+      "severite": "Faible",
+      "categorie": "Bug",
+      "titre": "Deux onglets : les réglages de l'un écrasent ceux de l'autre",
+      "preuve": "reproduction B6",
+      "statut": "ouvert",
+      "reproduction": "B6"
+    },
+    {
+      "id": "B7",
+      "severite": "Faible",
+      "categorie": "Bug",
+      "titre": "Fausses mentions quand le pseudo est un mot courant",
+      "preuve": "reproduction B7",
+      "statut": "ouvert",
+      "reproduction": "B7"
+    },
+    {
+      "id": "B8",
+      "severite": "Faible",
+      "categorie": "Bug",
+      "titre": "Message représentatif d'un moment fort sans accents ni majuscules",
+      "preuve": "reproduction B8",
+      "statut": "ouvert",
+      "reproduction": "B8"
+    },
+    {
+      "id": "B9",
+      "severite": "Faible",
+      "categorie": "Bug",
+      "titre": "Chat lent par paquets : chaque paquet devient un moment fort",
+      "preuve": "reproduction B9",
+      "statut": "ouvert",
+      "reproduction": "B9"
+    },
+    {
+      "id": "R1",
+      "severite": "Moyen (à vérifier)",
+      "categorie": "Robustesse",
+      "titre": "Emotes 7TV non comptées si 7TV les pose après notre lecture",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R2",
+      "severite": "Faible",
+      "categorie": "Robustesse",
+      "titre": "Connexion IndexedDB jamais rouverte, promesse de purge non gérée",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R3",
+      "severite": "Faible",
+      "categorie": "Robustesse",
+      "titre": "Pastille et cartes recalées une fois par seconde seulement",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R4",
+      "severite": "Faible",
+      "categorie": "Robustesse",
+      "titre": "Alt+Maj+B intercepté jusque dans les champs de saisie ; Échap non retenu",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R5",
+      "severite": "Faible",
+      "categorie": "Robustesse",
+      "titre": "Pastille sur la ligne la plus ancienne, carte d'absence sans fermeture automatique",
+      "preuve": "captures",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R6",
+      "severite": "Info (à vérifier)",
+      "categorie": "Robustesse",
+      "titre": "Arrivées reconnues par identité de nœud",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R7",
+      "severite": "Info",
+      "categorie": "Robustesse",
+      "titre": "2 s de messages ignorées à chaque reconnexion",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R8",
+      "severite": "Faible",
+      "categorie": "Robustesse",
+      "titre": "Bouton inséré dans une barre gérée par React",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "P1",
+      "severite": "Élevé",
+      "categorie": "Performance",
+      "titre": ":has() évalué sur toute la page à chaque survol de réponse",
+      "preuve": "reproduction P1, mesure",
+      "statut": "ouvert",
+      "reproduction": "P1"
+    },
+    {
+      "id": "P2",
+      "severite": "Moyen",
+      "categorie": "Performance",
+      "titre": "Recherche : normalisation de chaque message à chaque recherche",
+      "preuve": "reproduction P2",
+      "statut": "ouvert",
+      "reproduction": "P2"
+    },
+    {
+      "id": "P3",
+      "severite": "Faible",
+      "categorie": "Performance",
+      "titre": "Tic : lecture de mise en page et redessin de la pastille chaque seconde",
+      "preuve": "mesure",
+      "statut": "ouvert"
+    },
+    {
+      "id": "P4",
+      "severite": "Info",
+      "categorie": "Performance",
+      "titre": "Fil : relecture des 150 lignes et RegExp compilée par message",
+      "preuve": "mesure",
+      "statut": "ouvert"
+    },
+    {
+      "id": "P5",
+      "severite": "Info",
+      "categorie": "Performance",
+      "titre": "CSS du fil émis et transition posée même fil désactivé",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M1",
+      "severite": "Faible",
+      "categorie": "Code mort",
+      "titre": "quantite et le genre gift-multiple",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M2",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "Propriété notice de lireEntree",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M3",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "ui.hote, ui.style",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M4",
+      "severite": "Faible",
+      "categorie": "Code mort",
+      "titre": "Champs genre, parent, mention enregistrés, jamais relus",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M5",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "Champs vides de lectureLegere",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M6",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "Crochets de test livrés en production",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "Q1",
+      "severite": "Faible",
+      "categorie": "Maintenabilité",
+      "titre": "Deux implémentations de la confirmation en deux temps",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "Q2",
+      "severite": "Faible",
+      "categorie": "Maintenabilité",
+      "titre": "Caractères combinants invisibles dans sansAccents",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "Q3",
+      "severite": "Faible",
+      "categorie": "Maintenabilité",
+      "titre": "Fichier unique de 4 227 lignes",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "Q4",
+      "severite": "Info",
+      "categorie": "Maintenabilité",
+      "titre": "Commentaire « Spécificité renforcée » déplacé",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "Q5",
+      "severite": "Info",
+      "categorie": "Maintenabilité",
+      "titre": "Libellés du panneau inexacts (seuil de sortie, badges gardés)",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "Q6",
+      "severite": "Info",
+      "categorie": "Maintenabilité",
+      "titre": "Réglages de CONFIG absents du panneau, non documentés",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "S1",
+      "severite": "Faible",
+      "categorie": "Sécurité",
+      "titre": "Lecture de twilight-user, qui contient le jeton de session",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "S2",
+      "severite": "Info",
+      "categorie": "Sécurité",
+      "titre": "Historique dans le stockage de l'origine twitch.tv, interrogeable par __BTC",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "S3",
+      "severite": "Faible",
+      "categorie": "Sécurité",
+      "titre": "Durée de conservation non appliquée quand l'historique est coupé",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "S4",
+      "severite": "Info",
+      "categorie": "Sécurité",
+      "titre": "@noframes : enjeu accru avec l'interface et IndexedDB",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "S5",
+      "severite": "Positif",
+      "categorie": "Sécurité",
+      "titre": "Aucun innerHTML, shadow DOM, presse-papiers sur clic",
+      "preuve": "lecture",
+      "statut": "positif"
+    },
+    {
+      "id": "A1",
+      "severite": "Faible",
+      "categorie": "Accessibilité",
+      "titre": "Fil réservé à la souris ; panneau dialog sans comportement de dialogue",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "T1",
+      "severite": "Faible",
+      "categorie": "Tests",
+      "titre": "Le banc vérifie des classes, pas le rendu : F7c passe malgré B1",
+      "preuve": "reproduction B1",
+      "statut": "ouvert"
+    },
+    {
+      "id": "T2",
+      "severite": "Faible",
+      "categorie": "Tests",
+      "titre": "Aucun cas pour B2 à B9, P1 et P2",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "T3",
+      "severite": "Info",
+      "categorie": "Tests",
+      "titre": "Page imitée sans variables de thème Twitch",
+      "preuve": "captures",
+      "statut": "ouvert"
+    },
+    {
+      "id": "T4",
+      "severite": "Info",
+      "categorie": "Tests",
+      "titre": "Attentes réelles là où l'horloge simulée suffirait",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    }
+  ]
+}

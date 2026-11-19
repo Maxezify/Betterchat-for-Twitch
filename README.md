@@ -108,5 +108,7 @@ __BTC.config.reply.style = 'card'; __BTC.reload()   // tester un réglage sans l
 ## Documents
 
 - [`AUDIT.md`](AUDIT.md) : audit complet de la v15.24.0 et suivi des corrections (§0).
+- [`AUDIT-15.26.md`](AUDIT-15.26.md) : audit complet de la v15.26.0 (cœur et nouvelles fonctions) ;
+  ses constats se reproduisent avec `npm run audit:reproduction`.
 - [`CHANGELOG.md`](CHANGELOG.md) : journal des versions.
 - [`tests/suivi.json`](tests/suivi.json) : statut de chaque point de l'audit.
