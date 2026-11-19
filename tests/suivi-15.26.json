@@ -10,7 +10,8 @@
     "conservé": "gardé tel quel, avec sa justification",
     "reporté": "à traiter plus tard",
     "à vérifier": "à confirmer sur le DOM réel de Twitch",
-    "positif": "point fort à conserver"
+    "positif": "point fort à conserver",
+    "sans objet": "la fonction concernée a été retirée"
   },
   "items": [
     {
@@ -30,10 +31,9 @@
       "categorie": "Bug",
       "titre": "Pagination de l'historique : messages perdus quand les horodatages sont égaux",
       "preuve": "reproduction B2",
-      "statut": "corrigé",
+      "statut": "sans objet",
       "reproduction": "B2",
-      "note": "« Plus anciens » reprend après le dernier résultat rendu, identifiant compris.",
-      "tests": "26B2"
+      "note": "Sans objet : l'historique long a été retiré en v15.26.2, après correction en v15.26.1. « Plus anciens » reprend après le dernier résultat rendu, identifiant compris."
     },
     {
       "id": "B3",
@@ -128,8 +128,8 @@
       "categorie": "Robustesse",
       "titre": "Connexion IndexedDB jamais rouverte, promesse de purge non gérée",
       "preuve": "lecture",
-      "statut": "corrigé",
-      "note": "Connexion relâchée sur onclose et onversionchange, purge avec .catch, avertissements limités à un par minute. Non testé : la fermeture par le navigateur ne se simule pas simplement."
+      "statut": "sans objet",
+      "note": "Sans objet : l'historique long a été retiré en v15.26.2, après correction en v15.26.1. Connexion relâchée sur onclose et onversionchange, purge avec .catch, avertissements limités à un par minute. Non testé : la fermeture par le navigateur ne se simule pas simplement."
     },
     {
       "id": "R3",
@@ -157,7 +157,7 @@
       "titre": "Pastille sur la ligne la plus ancienne, carte d'absence sans fermeture automatique",
       "preuve": "captures",
       "statut": "corrigé",
-      "note": "Pastille à 60 % d'opacité au repos ; carte d'absence fermée au bout d'une minute, sauf survol.",
+      "note": "Pastille réservée à la rafale depuis la v15.26.2 (le pouls ne s'affiche plus dans le chat) ; carte d'absence fermée au bout d'une minute, sauf survol.",
       "tests": "26R5"
     },
     {
@@ -185,7 +185,8 @@
       "titre": "Bouton inséré dans une barre gérée par React",
       "preuve": "lecture",
       "statut": "conservé",
-      "note": "Risque surveillé ; le tic réinsère le bouton s'il disparaît."
+      "note": "Le bouton est désormais une copie de l'engrenage, sans data-a-target ni aria-* d'origine (v15.26.2) ; le tic le réinsère s'il disparaît.",
+      "tests": "N2, F1d"
     },
     {
       "id": "P1",
@@ -204,10 +205,9 @@
       "categorie": "Performance",
       "titre": "Recherche : normalisation de chaque message à chaque recherche",
       "preuve": "reproduction P2",
-      "statut": "corrigé",
+      "statut": "sans objet",
       "reproduction": "P2",
-      "note": "Diagnostic rectifié : le coût est la lecture IndexedDB (277 ms pour 20 000 messages), pas la normalisation. Index léger en mémoire construit à la première recherche : 2 à 3 ms par frappe ensuite.",
-      "tests": "26P2"
+      "note": "Sans objet : l'historique long a été retiré en v15.26.2, après correction en v15.26.1. Diagnostic rectifié : le coût est la lecture IndexedDB (277 ms pour 20 000 messages), pas la normalisation. Index léger en mémoire construit à la première recherche : 2 à 3 ms par frappe ensuite."
     },
     {
       "id": "P3",
@@ -216,7 +216,7 @@
       "titre": "Tic : lecture de mise en page et redessin de la pastille chaque seconde",
       "preuve": "mesure",
       "statut": "corrigé",
-      "note": "Pastille redessinée seulement si les tranches changent ; canevas dimensionné seulement si sa taille change."
+      "note": "Le pouls a quitté la pastille en v15.26.2 : plus rien à y redessiner. Le canevas du panneau n'est dimensionné que si sa taille change."
     },
     {
       "id": "P4",
@@ -270,9 +270,8 @@
       "categorie": "Code mort",
       "titre": "Champs genre, parent, mention enregistrés, jamais relus",
       "preuve": "grep",
-      "statut": "corrigé",
-      "note": "Champs retirés ; les formes normalisées texteN, loginN et nomN les remplacent.",
-      "tests": "26M"
+      "statut": "sans objet",
+      "note": "Sans objet : l'historique long a été retiré en v15.26.2, après correction en v15.26.1. Champs retirés ; les formes normalisées texteN, loginN et nomN les remplacent."
     },
     {
       "id": "M5",
@@ -363,8 +362,8 @@
       "categorie": "Sécurité",
       "titre": "Historique dans le stockage de l'origine twitch.tv, interrogeable par __BTC",
       "preuve": "lecture",
-      "statut": "corrigé",
-      "note": "README : stockage du site twitch.tv, lisible par ses scripts."
+      "statut": "sans objet",
+      "note": "Sans objet : l'historique long a été retiré en v15.26.2, après correction en v15.26.1. README : stockage du site twitch.tv, lisible par ses scripts."
     },
     {
       "id": "S3",
@@ -372,9 +371,8 @@
       "categorie": "Sécurité",
       "titre": "Durée de conservation non appliquée quand l'historique est coupé",
       "preuve": "lecture",
-      "statut": "corrigé",
-      "note": "Purge par âge et par volume même historique coupé, dès qu'une base existe (marque btc:historique:base).",
-      "tests": "26S3"
+      "statut": "sans objet",
+      "note": "Sans objet : l'historique long a été retiré en v15.26.2, après correction en v15.26.1. Purge par âge et par volume même historique coupé, dès qu'une base existe (marque btc:historique:base)."
     },
     {
       "id": "S4",
@@ -420,7 +418,7 @@
       "titre": "Aucun cas pour B2 à B9, P1 et P2",
       "preuve": "lecture",
       "statut": "corrigé",
-      "note": "19 cas ajoutés (26B1 à 26T3, 26M) ; la reproduction ne reproduit plus rien.",
+      "note": "19 cas ajoutés en v15.26.1 (préfixe 26), 16 depuis le retrait de l'historique en v15.26.2 ; la reproduction ne reproduit plus rien.",
       "tests": "26*"
     },
     {
@@ -440,9 +438,9 @@
       "titre": "Attentes réelles là où l'horloge simulée suffirait",
       "preuve": "lecture",
       "statut": "partiel",
-      "note": "Horloge simulée disponible dans le banc (option horloge), utilisée par 26B3, 26R5, 26S3. F3b attend toujours en temps réel.",
-      "tests": "26B3, 26R5, 26S3"
+      "note": "Horloge simulée disponible dans le banc (option horloge), utilisée par 26B3 et 26R5. F3b attend toujours en temps réel.",
+      "tests": "26B3, 26R5"
     }
   ],
-  "corrige_en": "15.26.1"
+  "corrige_en": "15.26.1, 15.26.2"
 }

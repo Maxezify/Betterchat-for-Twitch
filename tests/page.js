@@ -10,8 +10,16 @@ const THEME_SOMBRE = ':root{--color-background-base:#18181b;--color-background-a
     + '--color-text-base:#efeff1;--color-text-alt-2:#adadb8;--color-text-link:#bf94ff}';
 const THEME_CLAIR = ':root{--color-background-base:#ffffff;--color-background-alt:#f7f7f8;--color-background-alt-2:#efeff1;'
     + '--color-text-base:#0e0e10;--color-text-alt-2:#53535f;--color-text-link:#8205b4}';
-const STYLE_SOMBRE = THEME_SOMBRE + 'html,body{margin:0;background:#18181b;color:#efeff1;font:13px/1.5 Arial,sans-serif}';
-const STYLE_CLAIR = THEME_CLAIR + 'html,body{margin:0;background:#ffffff;color:#0e0e10;font:13px/1.5 Arial,sans-serif}';
+// Boutons d'icône de Twitch (réglages du chat) : la structure est relevée sur la page réelle,
+// le style en reprend l'essentiel. Le bouton du script est une copie de l'engrenage, dont il
+// doit avoir exactement la taille et l'alignement.
+const BOUTONS_TWITCH = '.ScCoreButton-sc-ocjdkq-0{display:inline-flex;position:relative;align-items:center;justify-content:center;'
+    + 'vertical-align:middle;border:0;padding:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer}'
+    + '.ScButtonIcon-sc-9yap0r-0{width:30px;height:30px}'
+    + '.ButtonIconFigure-sc-1emm8lf-0{display:inline-flex;align-items:center;width:20px;height:20px;fill:currentColor}'
+    + '.ScSvgWrapper-sc-wkgzod-0{display:inline-flex;align-items:center;width:100%;height:100%}.ScSvgWrapper-sc-wkgzod-0 svg{width:100%;height:100%}';
+const STYLE_SOMBRE = THEME_SOMBRE + BOUTONS_TWITCH + 'html,body{margin:0;background:#18181b;color:#efeff1;font:13px/1.5 Arial,sans-serif}';
+const STYLE_CLAIR = THEME_CLAIR + BOUTONS_TWITCH + 'html,body{margin:0;background:#ffffff;color:#0e0e10;font:13px/1.5 Arial,sans-serif}';
 
 /**
  * @param {object} o
@@ -33,7 +41,11 @@ const pageHtml = ({ theme = 'sombre', scrollerParent = false, dureeLive = '' } =
 ${dureeLive ? `<div class="channel-info"><span class="live-time">${dureeLive}</span></div>` : ''}
 <section class="chat-room" data-test-selector="chat-room-component-layout">${zone}
  <textarea data-a-target="chat-input"></textarea>
- <div class="chat-input__buttons"><div class="boutons"><button data-a-target="chat-settings" aria-label="Réglages du chat">⚙</button></div></div>
+ <div class="chat-input__buttons"><div class="kFDiny"><div class="glFavL"><div class="InjectLayout-sc-1i43xsx-0 bohlnR"><div class="Layout-sc-1xcs6mc-0 dXmeTP">`
+    + `<button class="ScCoreButton-sc-ocjdkq-0 eBQIRH ScButtonIcon-sc-9yap0r-0 jcYIUn" data-a-target="chat-settings" aria-label="Paramètres du chat">`
+    + `<div class="ButtonIconFigure-sc-1emm8lf-0 jgYFuA"><div class="ScSvgWrapper-sc-wkgzod-0 cnGLHG tw-svg">`
+    + `<svg width="24" height="24" viewBox="0 0 24 24" focusable="false" aria-hidden="true" role="presentation"><path d="M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path></svg>`
+    + `</div></div></button></div></div></div></div></div>
 </section></body></html>`;
 };
 

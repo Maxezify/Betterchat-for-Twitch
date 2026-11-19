@@ -15,11 +15,12 @@ l'audit précédent.
 
 ---
 
-## 0. Suivi des corrections — v15.26.1 (branche `dev`)
+## 0. Suivi des corrections — v15.26.1 et v15.26.2 (branche `dev`)
 
 | Statut | Points |
 |---|---|
-| Corrigé | 34 — tous les bugs (B1-B9), R1-R5, P1-P3, P5, M1-M5, Q1, Q2, Q4-Q6, S1-S3, T1-T3 |
+| Corrigé | 28 — B1, B3-B9, R1, R3-R5, P1, P3, P5, M1-M3, M5, Q1, Q2, Q4-Q6, S1, T1-T3 |
+| Sans objet | 6 — B2, P2, R2, S2, S3, M4 : ils portaient sur l'historique long, retiré en v15.26.2 après avoir été corrigés en v15.26.1 |
 | Partiel | 3 — P4 (mentions compilées une fois, sans cache de lecture : gain nul), A1 (panneau en `region` ; fil toujours à la souris), T4 (horloge simulée dans le banc ; F3b encore en temps réel) |
 | Conservé | 4 — R7 (stabilisation nécessaire aux reconnexions), R8 (bouton surveillé), M6 (outils de test documentés), S4 (`@noframes`, à trancher) |
 | Reporté | 1 — Q3 (assemblage depuis plusieurs fichiers : restructuration à mener seule) |
@@ -28,9 +29,15 @@ l'audit précédent.
 
 Le détail point par point est dans [`tests/suivi-15.26.json`](tests/suivi-15.26.json).
 `npm run audit:reproduction` ne reproduit plus aucun des 11 défauts sur la v15.26.1, et les
-reproduit tous sur la v15.26.0. Le banc compte 19 cas de plus (préfixe `26`, 90 au total) ; sur
-la v15.26.0, 18 d'entre eux échouent. Le dernier, 26T3, couvre un manque du banc (T3), pas un
+reproduit tous sur la v15.26.0. La v15.26.1 a ajouté 19 cas au banc (préfixe `26`) ; sur la
+v15.26.0, 18 d'entre eux échouent. Le dernier, 26T3, couvre un manque du banc (T3), pas un
 défaut du script.
+
+**v15.26.2.** L'historique long est retiré du projet, ainsi que le pouls de la pastille du chat.
+Les cas 26B2, 26P2 et 26S3 quittent le banc avec la fonction, et B2 et P2 sont « sans objet »
+dans la reproduction. Deux cas les remplacent : N1 vérifie que l'ancienne base est effacée au
+démarrage, N2 que le bouton du panneau est aligné sur l'engrenage de Twitch. Celui-ci était
+plus haut de 6,6 px, un défaut que l'audit n'avait pas relevé.
 
 **Deux rectificatifs de diagnostic**, établis en corrigeant :
 

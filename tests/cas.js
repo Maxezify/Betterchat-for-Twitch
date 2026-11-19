@@ -467,7 +467,7 @@ stat('LINT', ['Q2', 'Q3', 'M2'], 'ESLint : aucun avertissement', async ({ eslint
 });
 
 // =============================================================================
-// Fonctions de la v15.26 (F1 panneau, F3 rafale, F5 fil, F7 absence, F13 historique,
+// Fonctions de la v15.26 (F1 panneau, F3 rafale, F5 fil, F7 absence,
 // F14 pouls). Les cas qui dépendent des arrivées en direct lèvent d'abord la période
 // de stabilisation (2 s après la connexion, où Twitch rejoue les derniers messages).
 // =============================================================================
@@ -478,7 +478,7 @@ const recharger = async (page, SCRIPT) => {
     await page.evaluate(() => window.__mk.frames(3));
 };
 
-dyn('F1a', ['F1'], 'Panneau : un contrôle par réglage, trois onglets', ({ ouvrir }) =>
+dyn('F1a', ['F1'], 'Panneau : un contrôle par réglage, deux onglets', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(async () => {
         window.__BTC.reglages.ouvrir();
         await window.__mk.frames(2);
@@ -487,7 +487,7 @@ dyn('F1a', ['F1'], 'Panneau : un contrôle par réglage, trois onglets', ({ ouvr
         const controles = r ? r.querySelectorAll('[data-cle]').length : 0;
         const attendu = window.__BTC.reglages.liste().length;
         const onglets = r ? r.querySelectorAll('[role="tab"]').length : 0;
-        return { ok: visible && controles === attendu && onglets === 3,
+        return { ok: visible && controles === attendu && onglets === 2,
             details: `panneau ouvert=${visible}, contrôles=${controles}/${attendu}, onglets=${onglets}` };
     })));
 
@@ -511,9 +511,9 @@ dyn('F1b', ['F1'], 'Réglage changé : appliqué, enregistré seul, conservé ap
 dyn('F1c', ['F1'], 'Valeurs enregistrées invalides : ignorées ou bornées', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(() => {
         const c = window.__BTC.config;
-        const ok = c.reply.style === 'rail' && c.reply.fontScale === 1.2 && c.rafale.entree === 8 && c.historique.enabled === false;
-        return { ok, details: `style=${c.reply.style}, fontScale=${c.reply.fontScale} (borné), rafale.entree=${c.rafale.entree}, historique=${c.historique.enabled}` };
-    }), { before: (cle) => localStorage.setItem(cle, JSON.stringify({ reply: { style: 'zzz', fontScale: 99 }, rafale: { entree: 'abc' }, historique: { enabled: 'oui' }, inconnu: 1 })), avecArg: STOCKAGE }));
+        const ok = c.reply.style === 'rail' && c.reply.fontScale === 1.2 && c.rafale.entree === 8 && c.pouls.enabled === false;
+        return { ok, details: `style=${c.reply.style}, fontScale=${c.reply.fontScale} (borné), rafale.entree=${c.rafale.entree}, pouls=${c.pouls.enabled}` };
+    }), { before: (cle) => localStorage.setItem(cle, JSON.stringify({ reply: { style: 'zzz', fontScale: 99 }, rafale: { entree: 'abc' }, pouls: { enabled: 'oui' }, historique: { enabled: true }, inconnu: 1 })), avecArg: STOCKAGE }));
 
 dyn('F1d', ['F1'], 'Bouton à côté des réglages du chat, Alt+Maj+B et Échap', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(async () => {
@@ -729,84 +729,6 @@ dyn('F7c', ['F7'], 'Absence : « Aller au message » ramène la mention à l\'é
         return { ok: !!bouton && visible, details: `bouton=${!!bouton}, message repéré=${visible} (contour ${couleur})` };
     }), { before: PROFIL() }));
 
-const HISTORIQUE_ON = (cle) => localStorage.setItem(cle, JSON.stringify({ historique: { enabled: true } }));
-
-dyn('F13a', ['F13'], 'Historique : enregistrement et recherche (accents, pseudo)', ({ ouvrir }) =>
-    ouvrir((page) => page.evaluate(async () => {
-        const mk = window.__mk; const root = mk.root(); const H = window.__BTC.historique;
-        window.__BTC.interne.terminerStabilisation();
-        root.appendChild(mk.message({ user: 'alice', text: 'Le niveau est élevé ce soir' }));
-        root.appendChild(mk.message({ user: 'bob', text: 'rien à voir' }));
-        root.appendChild(mk.message({ user: 'alice', text: 'deuxième message' }));
-        await mk.frames(4);
-        await H.vider();
-        const parTexte = await H.chercher({ texte: 'ELEVE' });
-        const parPseudo = await H.chercher({ pseudo: 'ali' });
-        const total = await H.compter('testchannel');
-        const ok = parTexte.resultats.length === 1 && parTexte.resultats[0].login === 'alice' && parPseudo.resultats.length === 2 && total === 3;
-        return { ok, details: `« ELEVE »=${parTexte.resultats.length} résultat, « ali »=${parPseudo.resultats.length}, gardés=${total}` };
-    }), { before: HISTORIQUE_ON, avecArg: STOCKAGE }));
-
-dyn('F13b', ['F13'], 'Historique : conservé après rechargement de la page', ({ ouvrir, SCRIPT }) =>
-    ouvrir(async (page) => {
-        await page.evaluate(async () => {
-            const mk = window.__mk;
-            window.__BTC.interne.terminerStabilisation();
-            mk.root().appendChild(mk.message({ user: 'alice', text: 'message à retrouver demain' }));
-            await mk.frames(4);
-            await window.__BTC.historique.vider();
-        });
-        await recharger(page, SCRIPT);
-        const n = await page.evaluate(async () => (await window.__BTC.historique.chercher({ texte: 'retrouver' })).resultats.length);
-        return { ok: n === 1, details: `retrouvé après rechargement=${n}` };
-    }, { before: HISTORIQUE_ON, avecArg: STOCKAGE }));
-
-dyn('F13c', ['F13'], 'Historique : purge par volume et par âge', ({ ouvrir }) =>
-    ouvrir((page) => page.evaluate(async () => {
-        const H = window.__BTC.historique;
-        window.__BTC.config.historique.maxParChaine = 50;
-        const maintenant = Date.now();
-        const entree = (i, ts) => ({ chaine: 'testchannel', ts, type: 'message', genre: '', login: 'alice', nom: 'alice', couleur: '', texte: `n°${i}`, parent: '', mention: false });
-        H.ajouter(Array.from({ length: 5 }, (_, i) => entree(`vieux ${i}`, maintenant - 30 * 86400000 + i)));
-        H.ajouter(Array.from({ length: 80 }, (_, i) => entree(i, maintenant - 80000 + i * 1000)));
-        await H.vider();
-        const avant = await H.compter('testchannel');
-        await H.purger();
-        const apres = await H.compter('testchannel');
-        const vieux = (await H.chercher({ texte: 'vieux' })).resultats.length;
-        const dernier = (await H.chercher({ limite: 1 })).resultats[0];
-        return { ok: avant === 85 && apres === 50 && vieux === 0 && dernier.texte === 'n°79',
-            details: `avant=${avant}, après=${apres} (plafond 50), anciens de 30 jours restants=${vieux}, plus récent gardé=${dernier && dernier.texte}` };
-    }), { before: HISTORIQUE_ON, avecArg: STOCKAGE }));
-
-dyn('F13d', ['F13'], 'Historique coupé par défaut : rien n\'est enregistré', ({ ouvrir }) =>
-    ouvrir((page) => page.evaluate(async () => {
-        const mk = window.__mk;
-        window.__BTC.interne.terminerStabilisation();
-        mk.root().appendChild(mk.message({ text: 'pas gardé' }));
-        await mk.sleep(1200);
-        await window.__BTC.historique.vider();
-        const n = await window.__BTC.historique.compter('testchannel');
-        return { ok: window.__BTC.config.historique.enabled === false && n === 0, details: `activé=${window.__BTC.config.historique.enabled}, gardés=${n}` };
-    })));
-
-dyn('F13e', ['F13'], 'Historique : derniers messages au survol d\'un pseudo', ({ ouvrir }) =>
-    ouvrir((page) => page.evaluate(async () => {
-        const mk = window.__mk; const root = mk.root();
-        window.__BTC.interne.terminerStabilisation();
-        window.__BTC.config.historique.survolMs = 200;
-        root.appendChild(mk.message({ user: 'alice', text: 'premier message' }));
-        const w = mk.message({ user: 'alice', text: 'second message' });
-        root.appendChild(w);
-        await mk.frames(4);
-        await window.__BTC.historique.vider();
-        mk.survoler(w.querySelector('.chat-author__display-name'));
-        await mk.sleep(600);
-        const c = mk.ui() && mk.ui().querySelector('.carte.survol');
-        const ok = !!c && !c.hidden && c.dataset.total === '2' && /second message/.test(c.textContent);
-        return { ok, details: `carte=${!!c && !c.hidden}, messages comptés=${c && c.dataset.total}` };
-    }), { before: HISTORIQUE_ON, avecArg: STOCKAGE }));
-
 dyn('F14a', ['F14'], 'Pouls : détection des moments forts (série synthétique)', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(() => {
         const detecter = window.__BTC.pouls.detecter;
@@ -818,7 +740,7 @@ dyn('F14a', ['F14'], 'Pouls : détection des moments forts (série synthétique)
         return { ok, details: `pic=${JSON.stringify(pic.map((m) => [m.debut, m.fin, m.pic]))}, série plate=${plat.length}, sans historique=${tropTot.length}` };
     })));
 
-dyn('F14b', ['F14'], 'Pouls : mesure en direct et pastille', ({ ouvrir }) =>
+dyn('F14b', ['F14'], 'Pouls : mesuré en direct, rien d\'affiché dans le chat (il se lit dans le panneau)', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(async () => {
         const mk = window.__mk; const root = mk.root();
         window.__BTC.interne.terminerStabilisation();
@@ -827,9 +749,8 @@ dyn('F14b', ['F14'], 'Pouls : mesure en direct et pastille', ({ ouvrir }) =>
         await mk.sleep(1300);
         const comptes = window.__BTC.pouls.seaux.reduce((t, s) => t + s.n, 0);
         const p = mk.ui() && mk.ui().querySelector('.pastille');
-        const texte = p ? p.textContent : '';
-        const ok = comptes === 12 && !!p && !p.hidden && /\/min/.test(texte) && /PogU/.test(texte);
-        return { ok, details: `messages comptés=${comptes}, pastille="${texte}"` };
+        const visible = !!p && !p.hidden;
+        return { ok: comptes === 12 && !visible, details: `messages comptés=${comptes}, pastille dans le chat=${visible}` };
     })));
 
 dyn('F14c', ['F14'], 'Pouls : liste copiable des moments, heure depuis le début du live', ({ ouvrir }) =>
@@ -866,26 +787,6 @@ dyn('26B1', ['15.26 B1'], 'Repère « Aller au message » : le contour se voit p
         const couleur = getComputedStyle(ligne).outlineColor;
         return { ok: couleur !== 'rgba(0, 0, 0, 0)', details: `couleur du contour à 200 ms : ${couleur}` };
     })));
-
-dyn('26B2', ['15.26 B2'], 'Historique : « Plus anciens » ne perd rien quand des messages partagent la même milliseconde', ({ ouvrir }) =>
-    ouvrir((page) => page.evaluate(async () => {
-        const mk = window.__mk; const B = window.__BTC; const t0 = Date.now() - 100000;
-        // Twitch insère par lots : les messages d'un lot ont le même horodatage.
-        B.historique.ajouter(Array.from({ length: 150 }, (_, i) => ({ chaine: 'testchannel', ts: t0 + Math.floor(i / 7) * 1000,
-            type: 'message', login: 'a', nom: 'a', couleur: '', texte: `m${i}` })));
-        await B.historique.vider();
-        B.reglages.ouvrir('historique');
-        const vue = mk.ui().querySelector('[data-vue="historique"]');
-        const n = () => vue.querySelectorAll('.resultats li').length;
-        const attendre = async (cond) => { for (let i = 0; i < 150 && !cond(); i++) await mk.sleep(20); };
-        await attendre(() => n() >= 100);
-        const page1 = n();
-        const plus = [...vue.querySelectorAll('button')].find((b) => /Plus anciens/.test(b.textContent));
-        if (plus) plus.click();
-        await attendre(() => n() > page1);
-        const distincts = new Set([...vue.querySelectorAll('.resultats li .texte')].map((x) => x.textContent)).size;
-        return { ok: page1 === 100 && distincts === 150, details: `page 1 : ${page1}, après « Plus anciens » : ${distincts} messages distincts sur 150` };
-    }), AVEC({ historique: { enabled: true } })));
 
 dyn('26B3', ['15.26 B3'], 'Pouls : un moment fort reste dans la liste après deux heures', ({ ouvrir }) =>
     ouvrir(async (page) => {
@@ -1091,23 +992,6 @@ dyn('26P1', ['15.26 P1'], 'Fil : survol d\'une réponse sur une page lourde, sou
         return { ok: d[7] < 40, details: `${document.getElementsByTagName('*').length} éléments, survol : ${d[7].toFixed(1)} ms (médiane, 117 ms en v15.26.0)` };
     }, pageLourde.toString())));
 
-dyn('26P2', ['15.26 P2'], 'Historique : recherche pendant la frappe, sous 50 ms sur 20 000 messages', ({ ouvrir }) =>
-    ouvrir((page) => page.evaluate(async () => {
-        const H = window.__BTC.historique; const t0 = Date.now() - 3600000;
-        H.ajouter(Array.from({ length: 20000 }, (_, i) => ({ chaine: 'testchannel', ts: t0 + i * 150, type: 'message',
-            login: 'u' + (i % 300), nom: 'U' + (i % 300), couleur: '', texte: `message ${i} avec un peu de texte élevé autour` })));
-        await H.vider();
-        let t = performance.now();
-        await H.chercher({ texte: 'introuvabl' });
-        const premiere = performance.now() - t;
-        t = performance.now();
-        const r = await H.chercher({ texte: 'introuvable' });
-        const seconde = performance.now() - t;
-        const trouve = await H.chercher({ texte: 'ELEVE', limite: 5 });
-        const ok = seconde < 50 && r.resultats.length === 0 && trouve.resultats.length === 5 && trouve.encore;
-        return { ok, details: `première recherche ${Math.round(premiere)} ms, frappe suivante ${Math.round(seconde)} ms (350 ms en v15.26.0), « ELEVE » : ${trouve.resultats.length} résultats et plus` };
-    }), AVEC({ historique: { enabled: true } })));
-
 dyn('26S1', ['15.26 S1'], 'Identité : le cookie « login » d\'abord, le profil Twitch (qui porte le jeton) en repli', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(() => {
         const moi = window.__BTC.interne.monIdentite() || {};
@@ -1116,21 +1000,6 @@ dyn('26S1', ['15.26 S1'], 'Identité : le cookie « login » d\'abord, le profil
         document.cookie = 'login=parcookie; path=/';
         localStorage.setItem('twilight-user', JSON.stringify({ login: 'parprofil', displayName: 'ParProfil', authToken: 'jeton' }));
     } }));
-
-dyn('26S3', ['15.26 S3'], 'Historique coupé : la durée de conservation s\'applique toujours', ({ ouvrir }) =>
-    ouvrir(async (page) => {
-        await page.evaluate(async () => {
-            const H = window.__BTC.historique; const vieux = Date.now() - 30 * 86400000;
-            H.ajouter(Array.from({ length: 5 }, (_, i) => ({ chaine: 'testchannel', ts: vieux + i, type: 'message', login: 'a', nom: 'a', couleur: '', texte: 'ancien ' + i })));
-            await H.vider();
-            window.__BTC.reglages.changer('historique.enabled', false);
-        });
-        const avant = await page.evaluate(() => window.__BTC.historique.compter('testchannel'));
-        await page.clock.runFor(11 * 60000);
-        await page.waitForTimeout(500);   // la purge passe par IndexedDB, en temps réel
-        const apres = await page.evaluate(() => window.__BTC.historique.compter('testchannel'));
-        return { ok: avant === 5 && apres === 0, details: `messages de 30 jours : ${avant} avant, ${apres} après dix minutes, historique coupé` };
-    }, { horloge: HORLOGE, ...AVEC({ historique: { enabled: true } }) }));
 
 dyn('26A1', ['15.26 A1'], 'Panneau : une région, pas un dialogue', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(() => {
@@ -1150,6 +1019,53 @@ dyn('26T3', ['15.26 T3'], 'Panneau : couleurs du thème clair de Twitch', ({ ouv
 stat('26M', ['15.26 M1', '15.26 M2', '15.26 M3', '15.26 M4', '15.26 M5', '15.26 Q2'], 'Code mort de la v15.26 retiré, aucun caractère invisible dans le code',
     verifAbsence(['quantite', 'element: entree, notice,', 'ui = { hote', "genre: info.genre || ''", 'parent: info.parentLogin', 'mention: !!info.mentionneMoi',
         "genre: '', emotes", "emotes: [], texte: ''", /[̀-ͯ]/]));
+
+// =============================================================================
+// v15.26.2 : historique retiré, bouton du panneau calqué sur l'engrenage de Twitch.
+// =============================================================================
+dyn('N1', ['15.26.2'], 'Historique retiré : la base laissée par la v15.26 est effacée au démarrage', async ({ ouvrir }) => {
+    // Base de la v15.26.1 (avec sa marque) et de la v15.26.0 (sans marque).
+    const creer = (avecMarque) => new Promise((ok) => {
+        const r = indexedDB.open('btc-historique', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('messages', { keyPath: 'id', autoIncrement: true });
+        r.onsuccess = () => {
+            const tx = r.result.transaction('messages', 'readwrite');
+            tx.objectStore('messages').add({ texte: 'ancien message' });
+            tx.oncomplete = () => { r.result.close(); if (avecMarque) localStorage.setItem('btc:historique:base', '1'); ok(); };
+        };
+    });
+    const verifier = (page) => page.evaluate(async () => {
+        await window.__mk.sleep(500);
+        const bases = (await indexedDB.databases()).map((b) => b.name);
+        return { reste: bases.includes('btc-historique'), marque: localStorage.getItem('btc:historique:base'), api: 'historique' in window.__BTC };
+    });
+    const avec = await ouvrir(verifier, { before: creer, avecArg: true });
+    const sans = await ouvrir(verifier, { before: creer, avecArg: false });
+    const ok = !avec.reste && avec.marque === null && !sans.reste && !avec.api;
+    return { ok, details: `base de la v15.26.1 restante=${avec.reste} (marque ${avec.marque}), base de la v15.26.0 restante=${sans.reste}, __BTC.historique=${avec.api}` };
+});
+
+dyn('N2', ['15.26.2'], 'Bouton du panneau : copie de l\'engrenage, centré sur lui quelle que soit la mise en page', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        await window.__mk.sleep(1200);
+        const engrenage = document.querySelector('[data-a-target="chat-settings"]');
+        const bouton = engrenage.previousElementSibling;
+        if (!bouton || !bouton.classList.contains('btc-bouton')) return { ok: false, details: 'bouton absent' };
+        const mesurer = () => {
+            const a = engrenage.getBoundingClientRect(); const b = bouton.getBoundingClientRect();
+            const ia = engrenage.querySelector('svg').getBoundingClientRect(); const ib = bouton.querySelector('svg').getBoundingClientRect();
+            return { taille: Math.abs(a.width - b.width) + Math.abs(a.height - b.height),
+                ecart: Math.abs((ia.top + ia.height / 2) - (ib.top + ib.height / 2)), icone: Math.abs(ia.height - ib.height) };
+        };
+        const enLigne = mesurer();
+        // Même vérification si Twitch range ses boutons dans un conteneur flex.
+        Object.assign(engrenage.parentElement.style, { display: 'flex', alignItems: 'flex-end' });
+        const enFlex = mesurer();
+        const unique = document.querySelectorAll('[data-a-target="chat-settings"]').length === 1;
+        const aligne = (m) => m.taille < 0.5 && m.ecart < 0.5 && m.icone < 0.5;
+        return { ok: aligne(enLigne) && aligne(enFlex) && unique,
+            details: `écart vertical des icônes : ${enLigne.ecart.toFixed(1)} px en ligne, ${enFlex.ecart.toFixed(1)} px en flex ; même taille=${enLigne.taille < 0.5 && enFlex.taille < 0.5} ; engrenage seul à porter son data-a-target=${unique}` };
+    })));
 
 // =============================================================================
 // Version optimisée (scripts/build.js)

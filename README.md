@@ -8,9 +8,9 @@ compatible avec la nouvelle extension 7TV :
 - regroupement d'un gift multiple et de ses destinataires dans une seule notice ;
 - affichage progressif des messages et défilement fluide ;
 - alignement des emotes et des badges ;
-- un panneau de réglages dans le chat, et cinq fonctions décrites plus bas : densité
+- un panneau de réglages dans le chat, et quatre fonctions décrites plus bas : densité
   adaptative en rafale, fil de conversation au survol, résumé « Pendant ton absence »,
-  historique long avec recherche, pouls du chat et moments forts.
+  pouls du chat et moments forts.
 
 ## Installation
 
@@ -29,7 +29,7 @@ noms n'ont pas changé : il remplace une installation faite depuis l'ancien dép
 ## Panneau et fonctions
 
 Le panneau s'ouvre avec le bouton ajouté à côté de l'engrenage des réglages du chat, ou avec
-**Alt+Maj+B** (Échap le ferme). Il a trois onglets : *Réglages*, *Historique*, *Pouls du chat*.
+**Alt+Maj+B** (Échap le ferme). Il a deux onglets : *Réglages* et *Pouls du chat*.
 Un réglage changé s'applique tout de suite, sans recharger la page, messages déjà affichés
 compris, et il revient en arrière aussi bien. Seule exception : le regroupement des gifts,
 réactivé, ne vaut que pour les gifts suivants. Le réglage reste enregistré dans ce navigateur
@@ -42,15 +42,14 @@ confirmation.
 | Densité adaptative | activée | Quand le chat dépasse 8 messages par seconde (mesurés sur 5 s), il se resserre : badges secondaires masqués (modo, VIP, diffuseur et staff restent), notices et citations sur une ligne, interligne réduit, pastille « Rafale » en haut du chat. Il revient à la normale sous 5 messages par seconde, mesurés sur 10 s, et pas avant 10 s. Seuils et effets réglables un par un. |
 | Fil de conversation | activée | Au survol d'une réponse, le message d'origine et les autres réponses au même message sont encadrés, le reste du chat s'estompe. |
 | Pendant ton absence | activée | Au retour sur l'onglet après au moins 60 s : nombre de messages et pic de cadence, abonnements, gifts, raids, mentions (« @pseudo » ou réponse à l'un de tes messages, avec « Aller au message »), emotes les plus utilisées, personnes les plus actives. La carte se ferme seule au bout d'une minute. |
-| Historique long | **coupée** | Garde les messages de chaque chaîne dans ce navigateur (IndexedDB, 7 jours et 20 000 messages par chaîne au plus), au-delà des 150 lignes de Twitch. Recherche par texte (accents ignorés), pseudo, période et type ; au survol d'un pseudo, ses derniers messages. La durée de conservation s'applique même historique coupé. Rien n'est envoyé ailleurs ; l'onglet permet d'effacer une chaîne ou tout l'historique. |
-| Pouls du chat | **coupée** | Cadence par tranche de 10 s, graphique des deux dernières heures et moments forts de toute la session (pics par rapport à la normale du chat), avec l'heure du live quand Twitch l'affiche, l'emote dominante et un message représentatif. La liste se copie pour préparer des clips ; une pastille en haut du chat montre la cadence. |
+| Pouls du chat | **coupée** | Cadence par tranche de 10 s, graphique des deux dernières heures et moments forts de toute la session (pics par rapport à la normale du chat), avec l'heure du live quand Twitch l'affiche, l'emote dominante et un message représentatif. La liste se copie pour préparer des clips. Tout se lit dans le panneau : rien ne s'affiche dans le chat. |
 
 Les lignes que Twitch rejoue à l'ouverture du chat ne comptent pas comme des arrivées : la
-cadence, le résumé, l'historique et le pouls ne prennent en compte que le direct. Changer de
-chaîne remet la cadence et le pouls à zéro.
+cadence, le résumé et le pouls ne prennent en compte que le direct. Changer de chaîne remet
+la cadence et le pouls à zéro.
 
-L'historique est rangé dans le stockage du site twitch.tv de ce navigateur (IndexedDB, base
-`btc-historique`). Comme tout ce que Twitch y garde, les scripts de la page peuvent le lire.
+L'historique long des v15.26.0 et v15.26.1 a été retiré. La base qu'il avait pu créer dans le
+navigateur (IndexedDB, `btc-historique`) est effacée au premier lancement de la v15.26.2.
 
 ## Branches et livraison
 
@@ -62,7 +61,7 @@ L'historique est rangé dans le stockage du site twitch.tv de ce navigateur (Ind
 ## Livraison en prod
 
 La source commentée vit sur `dev`. `prod` reçoit le même code, sans commentaires ni espaces
-(environ 110 Ko au lieu de 229 Ko en v15.26.1) : l'en-tête `==UserScript==` est gardé tel quel, les noms
+(environ 93 Ko au lieu de 202 Ko en v15.26.2) : l'en-tête `==UserScript==` est gardé tel quel, les noms
 ne sont pas raccourcis, le code n'est pas réécrit. Le banc vérifie que cette version passe les
 mêmes cas que la source et produit exactement la même feuille de style.
 
@@ -107,7 +106,6 @@ __BTC.whyFontSize()  // liste les règles CSS qui fixent la taille des citations
 __BTC.reglages.ouvrir('pouls')               // ouvrir le panneau sur un onglet
 __BTC.reglages.changer('rafale.entree', 12)  // changer et enregistrer un réglage
 __BTC.reglages.liste()                       // réglages, valeurs et valeurs par défaut
-__BTC.historique.chercher({ texte: 'clip', pseudo: 'alice' })   // historique activé
 __BTC.pouls.moments()                        // moments forts de la session
 __BTC.config.reply.style = 'card'; __BTC.reload()   // tester un réglage sans l'enregistrer
 ```
@@ -117,8 +115,7 @@ Les réglages absents du panneau (tailles, délais internes, `rafale.fenetreS`, 
 remplace le fichier et efface ces modifications ; ceux du panneau, enregistrés à part, sont
 gardés.
 
-`__BTC.interne` et `__BTC.historique.ajouter` servent au banc de test. `ajouter` écrit dans
-l'historique des messages qui ne sont jamais passés dans le chat : à n'utiliser que pour essayer.
+`__BTC.interne` sert au banc de test et au diagnostic.
 
 ## Documents
 

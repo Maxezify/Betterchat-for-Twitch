@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BetterTwitchChat (+ 7TV)
 // @namespace    https://github.com/Maxezify/BetterTwitchChat-with-7tv
-// @version      15.26.1
-// @description  Réponses lisibles en entier (emotes incluses), notices sub/prime/gift compactées, regroupement des gifts multiples ; panneau de réglages, densité en rafale, fil de conversation, résumé d'absence, historique et pouls du chat. Compatible chat Twitch natif + nouvelle extension 7TV.
+// @version      15.26.2
+// @description  Réponses lisibles en entier (emotes incluses), notices sub/prime/gift compactées, regroupement des gifts multiples ; panneau de réglages, densité en rafale, fil de conversation, résumé d'absence et pouls du chat. Compatible chat Twitch natif + nouvelle extension 7TV.
 // @author       Maxezify
 // @match        https://www.twitch.tv/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.tv
@@ -55,7 +55,7 @@
     // à jour. La valeur écrite ici ne sert que de repli et doit rester égale à @version
     // (le banc de test le vérifie).
     const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version)
-        || '15.26.1';
+        || '15.26.2';
 
     // Une seule instance par page. Deux gestionnaires de scripts, ou deux installations
     // sous des noms différents, feraient tourner deux observateurs et deux boucles de
@@ -193,11 +193,10 @@
         fil: { enabled: true, estomper: true, delaiMs: 150 },
         // Résumé au retour sur l'onglet, après au moins `minimumS` secondes d'absence.
         absence: { enabled: true, minimumS: 60 },
-        // Historique long, gardé dans ce navigateur (IndexedDB). Coupé par défaut.
-        historique: { enabled: false, maxParChaine: 20000, jours: 7, survol: true, survolMs: 700 },
-        // Pouls du chat et moments forts. Coupé par défaut. `minimum` : nombre de messages
-        // par tranche de 10 s sous lequel rien n'est un pic, quelle que soit la normale.
-        pouls: { enabled: false, pastille: true, sensibilite: 2.5, minimum: 8 },
+        // Pouls du chat et moments forts, lisibles dans le panneau. Coupé par défaut.
+        // `minimum` : nombre de messages par tranche de 10 s sous lequel rien n'est un pic,
+        // quelle que soit la normale.
+        pouls: { enabled: false, sensibilite: 2.5, minimum: 8 },
         // Délai après la connexion au chat pendant lequel les lignes ne comptent pas comme
         // des arrivées en direct : Twitch y rejoue les derniers messages.
         stabilisationMs: 2000,
@@ -1027,10 +1026,18 @@
         }
 
         /* ---------- Bouton du panneau, à côté des réglages du chat ---------- */
-        .btc-bouton {
+        /* Le bouton est une copie de l'engrenage de Twitch et porte ses classes : il en a la
+           taille, l'alignement et le survol. Ces règles ne servent qu'au repli, quand
+           l'engrenage n'a pas la forme attendue. Centré sur la ligne et non posé sur sa ligne
+           de base : un bouton qui ne contient qu'une icône remontait de plusieurs pixels. */
+        .btc-bouton--seul {
             display: inline-flex !important;
             align-items: center;
             justify-content: center;
+            align-self: center;
+            vertical-align: middle;
+            flex: 0 0 auto;
+            box-sizing: border-box;
             width: 30px;
             height: 30px;
             margin: 0 2px;
@@ -1040,13 +1047,11 @@
             background: transparent;
             color: inherit;
             cursor: pointer;
-            opacity: 0.8;
         }
-        .btc-bouton:hover {
-            opacity: 1;
+        .btc-bouton--seul:hover {
             background: color-mix(in srgb, currentColor 12%, transparent);
         }
-        .btc-bouton:focus-visible {
+        .btc-bouton--seul:focus-visible {
             outline: 2px solid var(--btc-fil-couleur);
             outline-offset: 1px;
         }
@@ -1178,25 +1183,6 @@
         .danger { border-color: var(--alerte); color: var(--alerte); }
         .lien { border: 0; background: none; padding: 0 0 0 6px; color: var(--accent); cursor: pointer; text-decoration: underline; }
 
-        /* Historique */
-        .recherche { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-        .recherche #btc-h-texte { grid-column: 1 / -1; }
-        .resume { margin: 0; color: var(--texte-2); font-size: 12px; }
-        .resultats { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-        .resultats li {
-            display: grid;
-            grid-template-columns: auto auto minmax(0, 1fr);
-            gap: 0 8px;
-            align-items: baseline;
-            padding: 4px 6px;
-            border-radius: 6px;
-        }
-        .resultats li:nth-child(odd) { background: var(--fond-2); }
-        .resultats li.notice { color: var(--texte-2); }
-        .resultats time { color: var(--texte-2); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .resultats .pseudo { border: 0; background: none; padding: 0; font-weight: 700; cursor: pointer; white-space: nowrap; }
-        .resultats .texte { overflow-wrap: anywhere; }
-
         /* Pouls */
         .chiffres { margin: 0; font-variant-numeric: tabular-nums; }
         .graphe { width: 100%; height: 120px; display: block; background: var(--fond-2); border-radius: 6px; --trace: var(--accent); }
@@ -1206,7 +1192,7 @@
         .moments time { font-variant-numeric: tabular-nums; color: var(--texte-2); }
         .copie { width: 100%; box-sizing: border-box; }
 
-        /* Pastille, en haut à droite du chat */
+        /* Pastille de rafale, en haut à droite du chat */
         .pastille {
             position: absolute;
             top: 6px;
@@ -1221,17 +1207,9 @@
             font-size: 12px;
             cursor: pointer;
             font-variant-numeric: tabular-nums;
-            --trace: var(--accent);
-            /* Discrète au repos : elle couvre la fin de la ligne la plus ancienne. */
-            opacity: 0.6;
         }
-        .pastille:hover, .pastille:focus-visible, .pastille.rafale, .pastille.pic { opacity: 1; }
-        .pastille .mini { width: 60px; height: 16px; display: block; }
-        .pastille .etiquette { color: var(--texte-2); max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .pastille .etiquette:empty { display: none; }
         .pastille.rafale { border-color: var(--alerte); }
         .pastille.rafale .valeur { color: var(--alerte); font-weight: 700; }
-        .pastille.pic { box-shadow: 0 0 0 2px color-mix(in srgb, var(--alerte) 45%, transparent); }
 
         /* Cartes */
         .carte { background: var(--fond); border: 1px solid var(--bord); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4); }
@@ -1256,13 +1234,6 @@
         .emotes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
         .emote { display: inline-flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
         .emote img { height: 22px; width: auto; }
-        .carte.survol { position: fixed; padding: 8px 10px; font-size: 12px; pointer-events: none; display: grid; gap: 4px; }
-        .carte.survol .entete { display: flex; justify-content: space-between; gap: 8px; }
-        .carte.survol .entete span { color: var(--texte-2); }
-        .carte.survol ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
-        .carte.survol li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; }
-        .carte.survol time { color: var(--texte-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .carte.survol li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (prefers-reduced-motion: no-preference) {
             .pastille, .carte { transition: opacity 0.15s ease-out; }
         }
@@ -2763,7 +2734,6 @@
     const nombreFr = (n) => Number(n).toLocaleString('fr-FR');
     const pluriel = (n, un, plusieurs) => `${nombreFr(n)} ${n > 1 ? plusieurs : un}`;
     const heureCourte = (ts) => new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const dateCourte = (ts) => new Date(ts).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     const dureeLisible = (ms) => {
         const s = Math.round(ms / 1000);
         if (s < 60) return `${s} s`;
@@ -2858,16 +2828,8 @@
             bool('absence.enabled', 'Activer le résumé au retour'),
             nombre('absence.minimumS', 'Absence minimale', 10, 3600, 10, 's')
         ] },
-        { section: 'Historique long', aide: 'Garde les messages dans ce navigateur, au-delà des 150 lignes de Twitch. Rien n\'est envoyé ailleurs.', entrees: [
-            bool('historique.enabled', 'Enregistrer l\'historique'),
-            nombre('historique.maxParChaine', 'Messages gardés par chaîne', 1000, 100000, 1000, ''),
-            nombre('historique.jours', 'Durée de conservation', 1, 90, 1, 'jours'),
-            bool('historique.survol', 'Derniers messages d\'une personne au survol de son pseudo'),
-            nombre('historique.survolMs', 'Délai avant la carte de survol', 200, 3000, 100, 'ms')
-        ] },
         { section: 'Pouls du chat', aide: 'Cadence du chat et moments forts de la session.', entrees: [
             bool('pouls.enabled', 'Mesurer le pouls du chat'),
-            bool('pouls.pastille', 'Afficher le pouls dans le chat'),
             nombre('pouls.sensibilite', 'Seuil d\'un moment fort', 1.5, 5, 0.1, '× la normale', 'Plus bas : plus de moments repérés.')
         ] },
         { section: 'Divers', entrees: [
@@ -3142,7 +3104,7 @@
         const couche = h('div', { class: 'couche', hidden: true });
         racine.append(style, couche);
         (document.body || document.documentElement).appendChild(hote);
-        ui = { racine, couche, panneau: null, vues: {}, controles: new Map(), pastille: null, carteAbsence: null, carteSurvol: null };
+        ui = { racine, couche, panneau: null, vues: {}, controles: new Map(), pastille: null, carteAbsence: null };
         return ui;
     };
 
@@ -3188,7 +3150,7 @@
 
     // =========================================================================
     // PANNEAU DE RÉGLAGES
-    // Trois onglets : les réglages, l'historique et le pouls du chat. Chaque fonction
+    // Deux onglets : les réglages et le pouls du chat. Chaque fonction
     // inscrit sa propre vue dans `vuesPanneau` ; le panneau ne la construit qu'à la
     // première ouverture.
     // =========================================================================
@@ -3217,7 +3179,7 @@
         });
     };
 
-    const ONGLETS = [['reglages', 'Réglages'], ['historique', 'Historique'], ['pouls', 'Pouls du chat']];
+    const ONGLETS = [['reglages', 'Réglages'], ['pouls', 'Pouls du chat']];
     const vuesPanneau = {};
     let ongletCourant = 'reglages';
     let boutonPanneau = null;
@@ -3235,7 +3197,7 @@
         for (const [cle, vue] of Object.entries(ui.vues)) vue.hidden = cle !== id;
         const v = vuesPanneau[id];
         if (!v || !v.montrer) return;
-        // Une vue peut être asynchrone (historique) : son échec est signalé, pas propagé.
+        // Une vue peut être asynchrone : son échec est signalé, pas propagé.
         try {
             const r = v.montrer(ui.vues[id]);
             if (r && typeof r.catch === 'function') r.catch((e) => console.error('[BTC] panneau', e));
@@ -3482,474 +3444,23 @@
     crochets.chaine.push(() => surSortieFil());
 
     // =========================================================================
-    // HISTORIQUE LONG ET RECHERCHE
-    // Les messages arrivés en direct sont gardés dans IndexedDB, par chaîne, dans ce
-    // navigateur seulement. Écriture groupée chaque seconde ; purge par âge et par volume
-    // toutes les dix minutes. Ce qui était déjà affiché à l'ouverture du chat n'est pas
-    // repris : Twitch le rejoue à chaque visite et il serait compté plusieurs fois.
+    // ANCIEN HISTORIQUE
+    // L'historique long des v15.26.0 et v15.26.1 a été retiré. La base qu'il a pu créer dans
+    // ce navigateur n'a plus d'usage et pesait jusqu'à plusieurs dizaines de Mo : elle est
+    // effacée au démarrage, avec la marque qui la signalait. Sans base, rien n'est fait.
     // =========================================================================
-    const NOM_BASE = 'btc-historique';
-    // Marque, dans le stockage du navigateur, qu'une base existe : la purge par âge tourne
-    // alors même historique coupé, sans créer de base chez qui ne l'a jamais activé.
-    const CLE_BASE = 'btc:historique:base';
-    const PURGE_MS = 10 * 60000;
-    let basePromesse = null;
-    let tampon = [];
-    let dernierePurge = 0;
-    const etatHistorique = { disponible: typeof indexedDB !== 'undefined', erreur: '' };
-    let dernierAvertissement = 0;
-
-    /** Avertit dans la console, au plus une fois par minute : le tic tourne chaque seconde. */
-    const avertirHistorique = (quoi, e) => {
-        if (Date.now() - dernierAvertissement < 60000) return;
-        dernierAvertissement = Date.now();
-        console.warn(`[BTC] historique : ${quoi}`, e);
-    };
-
-    const finTransaction = (tx) => new Promise((ok, ko) => {
-        tx.oncomplete = () => ok();
-        tx.onerror = () => ko(tx.error);
-        tx.onabort = () => ko(tx.error);
-    });
-    const resultat = (r) => new Promise((ok, ko) => {
-        r.onsuccess = () => ok(r.result);
-        r.onerror = () => ko(r.error);
-    });
-    /** Parcourt un curseur ; `surCurseur` rend false pour s'arrêter. */
-    const parcourirCurseur = (source, plage, sens, surCurseur, cles = false) => new Promise((ok, ko) => {
-        const r = cles ? source.openKeyCursor(plage, sens) : source.openCursor(plage, sens);
-        r.onsuccess = () => {
-            const c = r.result;
-            if (!c) { ok(); return; }
-            const suite = surCurseur(c);
-            if (suite === false) { ok(); return; }
-            if (suite !== 'deja') c.continue();
-        };
-        r.onerror = () => ko(r.error);
-    });
-
-    const ouvrirBase = () => {
-        if (basePromesse) return basePromesse;
-        basePromesse = new Promise((ok) => {
-            if (!etatHistorique.disponible) { ok(null); return; }
-            let r;
-            try { r = indexedDB.open(NOM_BASE, 1); } catch (e) {
-                etatHistorique.disponible = false;
-                etatHistorique.erreur = String(e && e.message || e);
-                ok(null);
-                return;
-            }
-            r.onupgradeneeded = () => {
-                const s = r.result.createObjectStore('messages', { keyPath: 'id', autoIncrement: true });
-                s.createIndex('chaine_ts', ['chaine', 'ts']);
-                s.createIndex('chaine_login_ts', ['chaine', 'login', 'ts']);
-                s.createIndex('ts', 'ts');
-            };
-            r.onsuccess = () => {
-                const db = r.result;
-                ecrireStockage(CLE_BASE, '1');
-                // Le navigateur peut fermer la connexion (stockage saturé, données du site
-                // effacées) et un autre onglet demander une mise à niveau : on la lâche, la
-                // prochaine opération en ouvrira une nouvelle.
-                db.onversionchange = () => { db.close(); basePromesse = null; };
-                db.onclose = () => { basePromesse = null; };
-                ok(db);
-            };
-            r.onerror = () => {
-                etatHistorique.disponible = false;
-                etatHistorique.erreur = String(r.error && r.error.message || r.error);
-                ok(null);
-            };
-        });
-        return basePromesse;
-    };
-
-    const viderTampon = async () => {
-        if (!tampon.length) return 0;
-        const lot = tampon;
-        tampon = [];
-        const db = await ouvrirBase();
-        if (!db) return 0;
+    const ANCIENNE_BASE = 'btc-historique';
+    const ANCIENNE_MARQUE = 'btc:historique:base';
+    const effacerAncienHistorique = async () => {
+        if (typeof indexedDB === 'undefined') return;
         try {
-            const tx = db.transaction('messages', 'readwrite');
-            const store = tx.objectStore('messages');
-            for (const e of lot) {
-                const r = store.add(e);
-                r.onsuccess = () => { e.id = r.result; };
-            }
-            await finTransaction(tx);
-            indexerNouveaux(lot);
-            return lot.length;
+            const marque = lireStockage(ANCIENNE_MARQUE);
+            const existe = marque !== null || (typeof indexedDB.databases === 'function'
+                && (await indexedDB.databases()).some((d) => d.name === ANCIENNE_BASE));
+            if (existe) indexedDB.deleteDatabase(ANCIENNE_BASE);
+            if (marque !== null) ecrireStockage(ANCIENNE_MARQUE, null);
         } catch (e) {
-            // Connexion perdue : la suivante sera rouverte.
-            if (e && e.name === 'InvalidStateError') basePromesse = null;
-            avertirHistorique('écriture impossible', e);
-            return 0;
-        }
-    };
-
-    const plageChaine = (chaine, depuis = -Infinity, avant = Infinity) => IDBKeyRange.bound([chaine, depuis], [chaine, avant], false, true);
-
-    // ---- index de recherche
-    // Une recherche par texte doit examiner chaque message gardé, et IndexedDB les rend un
-    // par un : 277 ms pour 20 000 messages, mesuré, quel que soit le filtre (1 ms). Refaire
-    // ce parcours à chaque frappe rendait la recherche lente. On garde donc en mémoire, le
-    // temps de s'en servir, une forme légère des messages de la chaîne consultée ; seuls les
-    // résultats retenus sont relus en entier. Construit à la première recherche, tenu à jour
-    // à chaque écriture, oublié deux minutes après la dernière recherche.
-    const INDEX_OUBLI_MS = 2 * 60000;
-    let indexRecherche = null;   // { chaine, entrees: [{ id, ts, type, texteN, loginN, nomN }], complet, pret }
-    let indexOubli = null;
-
-    /** Forme légère d'un message gardé. Ceux de la v15.26.0 n'avaient pas les formes normalisées. */
-    const legere = (v) => ({
-        id: v.id, ts: v.ts, type: v.type,
-        texteN: v.texteN !== undefined ? v.texteN : sansAccents(v.texte),
-        loginN: v.loginN !== undefined ? v.loginN : sansAccents(v.login),
-        nomN: v.nomN !== undefined ? v.nomN : sansAccents(v.nom)
-    });
-
-    const oublierIndex = () => {
-        clearTimeout(indexOubli);
-        indexRecherche = null;
-    };
-
-    const indexPour = (db, chaine) => {
-        clearTimeout(indexOubli);
-        indexOubli = setTimeout(oublierIndex, INDEX_OUBLI_MS);
-        if (indexRecherche && indexRecherche.chaine === chaine) return indexRecherche.pret;
-        const idx = { chaine, entrees: [], complet: false };
-        idx.pret = (async () => {
-            try {
-                const index = db.transaction('messages').objectStore('messages').index('chaine_ts');
-                // Dans l'ordre de l'index : horodatage, puis identifiant.
-                await parcourirCurseur(index, plageChaine(chaine), 'next', (c) => { idx.entrees.push(legere(c.value)); });
-            } catch (e) {
-                // Échec de lecture : la prochaine recherche retentera, au lieu de rester bloquée.
-                if (indexRecherche === idx) oublierIndex();
-                throw e;
-            }
-            idx.complet = true;
-            return idx;
-        })();
-        indexRecherche = idx;
-        return idx.pret;
-    };
-
-    /**
-     * Messages tout juste écrits : ajoutés à l'index de leur chaîne, s'il est en mémoire.
-     * Déclaration de fonction, donc hissée : viderTampon, plus haut, l'appelle.
-     */
-    function indexerNouveaux(lot) {
-        const idx = indexRecherche;
-        if (!idx) return;
-        // Index en construction : son parcours pourrait déjà les contenir. On le refera.
-        if (!idx.complet) { oublierIndex(); return; }
-        const { entrees } = idx;
-        for (const e of lot) {
-            if (e.chaine !== idx.chaine || e.id === undefined) continue;
-            const l = legere(e);
-            let i = entrees.length;
-            while (i > 0 && (entrees[i - 1].ts > l.ts || (entrees[i - 1].ts === l.ts && entrees[i - 1].id > l.id))) i--;
-            entrees.splice(i, 0, l);
-        }
-    }
-
-    const listerChaines = async () => {
-        const db = await ouvrirBase();
-        if (!db) return [];
-        const chaines = [];
-        const index = db.transaction('messages').objectStore('messages').index('chaine_ts');
-        await parcourirCurseur(index, null, 'next', (c) => {
-            const ch = c.key[0];
-            chaines.push(ch);
-            c.continue([ch, Infinity]);
-            return 'deja';
-        }, true);
-        return chaines;
-    };
-
-    const compterHistorique = async (chaine = chaineCourante) => {
-        const db = await ouvrirBase();
-        if (!db || !chaine) return 0;
-        return resultat(db.transaction('messages').objectStore('messages').index('chaine_ts').count(plageChaine(chaine)));
-    };
-
-    const purgerHistorique = async () => {
-        dernierePurge = Date.now();
-        const db = await ouvrirBase();
-        if (!db) return;
-        const limiteAge = Date.now() - CONFIG.historique.jours * 86400000;
-        let supprimes = 0;
-        let tx = db.transaction('messages', 'readwrite');
-        await parcourirCurseur(tx.objectStore('messages').index('ts'), IDBKeyRange.upperBound(limiteAge, true), 'next', (c) => { c.delete(); supprimes++; });
-        await finTransaction(tx);
-        for (const chaine of await listerChaines()) {
-            const nb = await compterHistorique(chaine);
-            let enTrop = nb - CONFIG.historique.maxParChaine;
-            if (enTrop <= 0) continue;
-            tx = db.transaction('messages', 'readwrite');
-            await parcourirCurseur(tx.objectStore('messages').index('chaine_ts'), plageChaine(chaine), 'next', (c) => {
-                if (enTrop-- <= 0) return false;
-                c.delete();
-                supprimes++;
-                return true;
-            });
-            await finTransaction(tx);
-        }
-        // L'index de recherche en mémoire n'est à refaire que si des messages sont partis.
-        if (supprimes) oublierIndex();
-    };
-
-    /**
-     * Recherche, des plus récents aux plus anciens. `texte` ignore la casse et les accents ;
-     * `pseudo` est un début de pseudo ou de login. Pour la page suivante, `avant` et
-     * `avantId` reprennent l'horodatage et l'identifiant du dernier résultat rendu ; `avant`
-     * seul exclut tout cet horodatage.
-     */
-    const chercherHistorique = async ({ chaine = chaineCourante, texte = '', pseudo = '', depuis = -Infinity,
-        avant = Infinity, avantId = Infinity, type = '', limite = 100 } = {}) => {
-        const db = await ouvrirBase();
-        if (!db || !chaine) return { resultats: [], encore: false };
-        const aiguille = sansAccents(normalizeSpaces(texte));
-        const qui = sansAccents(String(pseudo).trim().replace(/^@/, ''));
-        const garder = (e) => (!type || e.type === type)
-            && (!aiguille || e.texteN.includes(aiguille))
-            && (!qui || e.loginN.startsWith(qui) || e.nomN.startsWith(qui));
-        // Page suivante : on reprend juste après le dernier résultat rendu, identifiant
-        // compris. Twitch insère par lots et tout un lot porte la même milliseconde : une
-        // borne sur l'horodatage seul perdait la fin d'un lot coupé par la page.
-        const borneId = Number.isFinite(avantId) ? avantId : -Infinity;
-        const { entrees } = await indexPour(db, chaine);
-        const ids = [];
-        let encore = false;
-        for (let i = entrees.length - 1; i >= 0; i--) {
-            const e = entrees[i];
-            if (e.ts > avant || (e.ts === avant && e.id >= borneId)) continue;
-            if (e.ts < depuis) break;
-            if (!garder(e)) continue;
-            if (ids.length >= limite) { encore = true; break; }
-            ids.push(e.id);
-        }
-        const store = db.transaction('messages').objectStore('messages');
-        const resultats = (await Promise.all(ids.map((id) => resultat(store.get(id))))).filter(Boolean);
-        return { resultats, encore };
-    };
-
-    /** Derniers messages d'une personne sur une chaîne, et combien sont gardés. */
-    const derniersDe = async (login, n = 5, chaine = chaineCourante) => {
-        const db = await ouvrirBase();
-        if (!db || !chaine || !login) return { total: 0, messages: [] };
-        const index = db.transaction('messages').objectStore('messages').index('chaine_login_ts');
-        const plage = IDBKeyRange.bound([chaine, login, -Infinity], [chaine, login, Infinity]);
-        const messages = [];
-        await parcourirCurseur(index, plage, 'prev', (c) => {
-            messages.push(c.value);
-            return messages.length < n;
-        });
-        const total = await resultat(index.count(plage));
-        return { total, messages };
-    };
-
-    const effacerHistorique = async (chaine = null) => {
-        tampon = chaine ? tampon.filter((e) => e.chaine !== chaine) : [];
-        const db = await ouvrirBase();
-        if (!db) return;
-        const tx = db.transaction('messages', 'readwrite');
-        const store = tx.objectStore('messages');
-        if (!chaine) store.clear();
-        else await parcourirCurseur(store.index('chaine_ts'), plageChaine(chaine), 'next', (c) => { c.delete(); });
-        await finTransaction(tx);
-        oublierIndex();
-    };
-
-    /** Message tel qu'il est gardé : formes normalisées calculées une fois, à l'écriture. */
-    const enregistrement = (e) => ({ ...e,
-        texteN: sansAccents(e.texte), loginN: sansAccents(e.login), nomN: sansAccents(e.nom) });
-
-    besoinsLecture.push(() => CONFIG.historique.enabled);
-    crochets.entree.push((info, ts) => {
-        if (!CONFIG.historique.enabled || info.type === 'systeme') return;
-        const chaine = chaineCourante || cleDeChaine();
-        if (!chaine) return;
-        tampon.push(enregistrement({ chaine, ts, type: info.type, login: info.login || '', nom: info.nom || '',
-            couleur: info.couleur || '', texte: info.texte || '' }));
-        if (tampon.length >= 200) viderTampon();
-    });
-    crochets.tic.push(() => {
-        if (tampon.length) viderTampon();
-        // La durée de conservation vaut aussi historique coupé : ce qui a été gardé ne
-        // reste pas au-delà, dès lors qu'une base existe dans ce navigateur.
-        if ((CONFIG.historique.enabled || lireStockage(CLE_BASE)) && Date.now() - dernierePurge > PURGE_MS) {
-            purgerHistorique().catch((e) => avertirHistorique('purge impossible', e));
-        }
-    });
-
-    // ---- carte au survol d'un pseudo
-    let survolNom = null;
-    let survolMinuteur = null;
-    let survolJeton = 0;
-
-    const masquerCarteSurvol = () => {
-        survolJeton++;
-        if (ui && ui.carteSurvol) ui.carteSurvol.hidden = true;
-    };
-
-    const montrerCarteSurvol = async (nomEl) => {
-        const jeton = ++survolJeton;
-        const login = (nomEl.dataset.aUser || nomEl.dataset.seventvUserLogin || nomEl.textContent || '').trim().toLowerCase();
-        const { total, messages } = await derniersDe(login, 5);
-        if (jeton !== survolJeton || !nomEl.isConnected) return;
-        installerInterface();
-        if (!ui.carteSurvol) {
-            ui.carteSurvol = h('div', { class: 'carte survol', role: 'tooltip', hidden: true });
-            ui.racine.append(ui.carteSurvol);
-        }
-        const carte = ui.carteSurvol;
-        carte.replaceChildren(
-            h('div', { class: 'entete' }, h('strong', {}, normalizeSpaces(nomEl.textContent || login)),
-                h('span', {}, total ? `${pluriel(total, 'message gardé', 'messages gardés')} ici` : 'aucun message gardé ici')),
-            messages.length
-                ? h('ul', {}, messages.map((m) => h('li', {}, h('time', {}, dateCourte(m.ts)), h('span', {}, m.texte || '—'))))
-                : null);
-        carte.dataset.total = String(total);
-        carte.hidden = false;
-        const r = nomEl.getBoundingClientRect();
-        const largeur = Math.min(320, window.innerWidth - 16);
-        const gauche = Math.max(8, Math.min(r.left, window.innerWidth - largeur - 8));
-        const haut = r.bottom + 6 + carte.offsetHeight > window.innerHeight ? Math.max(8, r.top - carte.offsetHeight - 6) : r.bottom + 6;
-        Object.assign(carte.style, { left: `${gauche}px`, top: `${haut}px`, width: `${largeur}px` });
-    };
-
-    const surSurvolPseudo = (e) => {
-        if (!CONFIG.historique.enabled || !CONFIG.historique.survol) return;
-        const nomEl = e.target instanceof Element ? e.target.closest(SEL.username) : null;
-        if (nomEl === survolNom) return;
-        survolNom = nomEl;
-        clearTimeout(survolMinuteur);
-        masquerCarteSurvol();
-        if (nomEl) survolMinuteur = setTimeout(() => montrerCarteSurvol(nomEl).catch(() => {}), CONFIG.historique.survolMs);
-    };
-    const surSortiePseudo = () => {
-        survolNom = null;
-        clearTimeout(survolMinuteur);
-        masquerCarteSurvol();
-    };
-    crochets.connexion.push((root) => {
-        root.addEventListener('mouseover', surSurvolPseudo);
-        root.addEventListener('mouseleave', surSortiePseudo);
-    });
-    crochets.deconnexion.push((root) => {
-        root.removeEventListener('mouseover', surSurvolPseudo);
-        root.removeEventListener('mouseleave', surSortiePseudo);
-        surSortiePseudo();
-    });
-
-    // ---- vue « Historique » du panneau
-    const PERIODES = [['tout', 'Tout', Infinity], ['heure', 'Dernière heure', 3600000], ['jour', '24 heures', 86400000], ['semaine', '7 jours', 604800000]];
-    const filtresHistorique = { chaine: '', texte: '', pseudo: '', periode: 'tout', type: '' };
-    let rechercheJeton = 0;
-
-    const ouvrirHistorique = (filtres = {}) => {
-        Object.assign(filtresHistorique, { chaine: chaineCourante || '', texte: '', pseudo: '', periode: 'tout', type: '' }, filtres);
-        ouvrirPanneau('historique');
-    };
-
-    vuesPanneau.historique = {
-        construire(vue) {
-            const etat = h('div', { class: 'etat' });
-            const chaine = h('select', { id: 'btc-h-chaine', 'aria-label': 'Chaîne' });
-            const texte = h('input', { type: 'search', id: 'btc-h-texte', placeholder: 'Mot, phrase, emote…', 'aria-label': 'Texte recherché' });
-            const pseudo = h('input', { type: 'search', id: 'btc-h-pseudo', placeholder: 'Pseudo', 'aria-label': 'Pseudo' });
-            const periode = h('select', { id: 'btc-h-periode', 'aria-label': 'Période' }, PERIODES.map(([v, l]) => h('option', { value: v }, l)));
-            const type = h('select', { id: 'btc-h-type', 'aria-label': 'Type' },
-                h('option', { value: '' }, 'Messages et notices'), h('option', { value: 'message' }, 'Messages'), h('option', { value: 'notice' }, 'Notices'));
-            const resume = h('p', { class: 'resume', 'aria-live': 'polite' });
-            const liste = h('ol', { class: 'resultats' });
-            const plus = h('button', { type: 'button', class: 'secondaire', hidden: true }, 'Plus anciens');
-            const effacerChaine = h('button', { type: 'button', class: 'secondaire' }, 'Effacer cette chaîne');
-            const toutEffacer = h('button', { type: 'button', class: 'secondaire' }, 'Tout effacer');
-            const formulaire = h('form', { class: 'recherche', role: 'search' }, chaine, texte, pseudo, periode, type);
-            vue.append(etat, formulaire, resume, liste, plus, h('div', { class: 'pied' }, effacerChaine, toutEffacer,
-                h('p', { class: 'aide' }, 'Tout reste dans ce navigateur. Les messages déjà affichés à l\'ouverture du chat ne sont pas repris.')));
-
-            let dernier = null;   // dernier résultat rendu : { ts, id }, pour la page suivante
-            const lire = () => ({ chaine: chaine.value, texte: texte.value, pseudo: pseudo.value, periode: periode.value, type: type.value });
-            const afficher = (resultats, ajouter) => {
-                if (!ajouter) liste.replaceChildren();
-                for (const m of resultats) {
-                    const qui = h('button', { type: 'button', class: 'pseudo', title: `Messages de ${m.nom || m.login}` }, m.nom || m.login || '—');
-                    if (m.couleur) qui.style.color = m.couleur;
-                    qui.addEventListener('click', () => { pseudo.value = m.login; chercher(); });
-                    liste.append(h('li', { class: m.type === 'notice' ? 'notice' : null }, h('time', { datetime: new Date(m.ts).toISOString() }, dateCourte(m.ts)), qui, h('span', { class: 'texte' }, m.texte || '—')));
-                }
-            };
-            // Déclaration hissée : les pseudos de la liste relancent la recherche.
-            async function chercher(suite = false) {
-                const jeton = ++rechercheJeton;
-                const f = lire();
-                Object.assign(filtresHistorique, f);
-                const duree = (PERIODES.find(([v]) => v === f.periode) || PERIODES[0])[2];
-                const r = await chercherHistorique({ chaine: f.chaine, texte: f.texte, pseudo: f.pseudo, type: f.type,
-                    depuis: Number.isFinite(duree) ? Date.now() - duree : -Infinity,
-                    avant: suite && dernier ? dernier.ts : Infinity, avantId: suite && dernier ? dernier.id : Infinity, limite: 100 });
-                if (jeton !== rechercheJeton) return;
-                afficher(r.resultats, suite);
-                if (r.resultats.length) {
-                    const d = r.resultats[r.resultats.length - 1];
-                    dernier = { ts: d.ts, id: d.id };
-                }
-                plus.hidden = !r.encore;
-                const n = liste.children.length;
-                resume.textContent = n ? `${pluriel(n, 'résultat', 'résultats')}${r.encore ? ' (et plus)' : ''}` : 'Aucun message ne correspond.';
-            }
-            let differe = null;
-            formulaire.addEventListener('input', () => { clearTimeout(differe); differe = setTimeout(() => chercher(), 250); });
-            formulaire.addEventListener('change', () => chercher());
-            formulaire.addEventListener('submit', (e) => { e.preventDefault(); chercher(); });
-            plus.addEventListener('click', () => chercher(true));
-
-            const effacer = (quoi) => async () => {
-                await effacerHistorique(quoi());
-                vuesPanneau.historique.montrer(vue);
-            };
-            confirmerEnDeuxTemps(effacerChaine, 'Confirmer la suppression', effacer(() => chaine.value));
-            confirmerEnDeuxTemps(toutEffacer, 'Confirmer la suppression', effacer(() => null));
-
-            vue.btc = { etat, chaine, texte, pseudo, periode, type, chercher };
-        },
-        async montrer(vue) {
-            const c = vue.btc;
-            if (!c) return;
-            c.etat.replaceChildren();
-            vue.querySelector('form').hidden = !CONFIG.historique.enabled;
-            if (!CONFIG.historique.enabled) {
-                // Rien n'est ouvert tant que l'historique est coupé : pas de base créée pour rien.
-                const activer = h('button', { type: 'button', class: 'principal' }, 'Activer l\'historique');
-                activer.addEventListener('click', () => { changerReglage('historique.enabled', true); vuesPanneau.historique.montrer(vue); });
-                c.etat.append(h('p', {}, 'L\'historique est désactivé : rien n\'est enregistré.'), activer,
-                    h('p', { class: 'aide' }, 'Ce qui a déjà été gardé reste en place et redevient consultable à la réactivation. Il est tout de même effacé au-delà de la durée de conservation.'));
-                return;
-            }
-            if (!etatHistorique.disponible) {
-                c.etat.append(h('p', { class: 'alerte' }, `Stockage IndexedDB indisponible dans ce navigateur${etatHistorique.erreur ? ` (${etatHistorique.erreur})` : ''}.`));
-                return;
-            }
-            await viderTampon();
-            const chaines = await listerChaines();
-            const courante = chaineCourante || '';
-            if (courante && !chaines.includes(courante)) chaines.unshift(courante);
-            c.chaine.replaceChildren(...chaines.map((ch) => h('option', { value: ch }, ch === courante ? `${ch} (en cours)` : ch)));
-            c.chaine.value = filtresHistorique.chaine && chaines.includes(filtresHistorique.chaine) ? filtresHistorique.chaine : courante;
-            c.texte.value = filtresHistorique.texte;
-            c.pseudo.value = filtresHistorique.pseudo;
-            c.periode.value = filtresHistorique.periode;
-            c.type.value = filtresHistorique.type;
-            const total = c.chaine.value ? await compterHistorique(c.chaine.value) : 0;
-            c.etat.append(h('p', { class: 'aide' }, c.chaine.value
-                ? `${pluriel(total, 'message gardé', 'messages gardés')} pour ${c.chaine.value}.`
-                : 'Aucune chaîne enregistrée pour l\'instant.'));
-            await c.chercher();
+            log('ancien historique non effacé', e);
         }
     };
 
@@ -4032,9 +3543,7 @@
                 const present = m.element && m.element.isConnected;
                 const aller = present
                     ? h('button', { type: 'button', class: 'lien', onclick: () => allerA(m.element) }, 'Aller au message')
-                    : (CONFIG.historique.enabled
-                        ? h('button', { type: 'button', class: 'lien', onclick: () => ouvrirHistorique({ texte: m.texte.slice(0, 60) }) }, 'Voir dans l\'historique')
-                        : h('span', { class: 'aide' }, 'plus dans le chat'));
+                    : h('span', { class: 'aide' }, 'plus dans le chat');
                 return h('li', {}, h('strong', {}, m.nom), h('span', { class: 'texte' }, ` ${m.texte}`), aller);
             })));
         }
@@ -4285,11 +3794,6 @@
         debutLiveLuA = 0;
     });
 
-    const enPic = () => {
-        const dernier = moments[moments.length - 1];
-        return !!dernier && seaux.length > 1 && dernier.fin >= seaux[seaux.length - 2].debut + SEAU_MS;
-    };
-
     const emoteDominante = (nbSeaux) => {
         const e = new Map();
         for (const s of seaux.slice(-nbSeaux)) for (const [nom, n] of s.emotes) incrementer(e, nom, n);
@@ -4387,82 +3891,94 @@
 
     // =========================================================================
     // PASTILLE, BOUTON ET RACCOURCI
-    // La pastille, en haut à droite du chat, réunit l'état de rafale et le pouls. Le
-    // bouton s'insère à côté de l'engrenage des réglages du chat ; s'il n'est pas là,
-    // Alt+Maj+B et __BTC.reglages.ouvrir() ouvrent toujours le panneau.
+    // La pastille, en haut à droite du chat, signale une rafale en cours ; le pouls se lit
+    // dans le panneau. Le bouton s'insère à côté de l'engrenage des réglages du chat ;
+    // s'il n'est pas là, Alt+Maj+B et __BTC.reglages.ouvrir() ouvrent toujours le panneau.
     // =========================================================================
     const majPastille = () => {
         const rafale = CONFIG.rafale.enabled && CONFIG.rafale.indicateur && rafaleActive;
-        const pouls = CONFIG.pouls.enabled && CONFIG.pouls.pastille;
-        if (!rafale && !pouls) {
+        if (!rafale) {
             if (ui && ui.pastille) ui.pastille.hidden = true;
             return;
         }
         installerInterface();
         if (!ui.pastille) {
-            ui.pastille = h('button', { type: 'button', class: 'pastille', hidden: true },
-                h('canvas', { class: 'mini', width: '60', height: '16', 'aria-hidden': 'true' }),
-                h('span', { class: 'valeur' }), h('span', { class: 'etiquette' }));
-            ui.pastille.addEventListener('click', () => basculerPanneau(CONFIG.pouls.enabled ? 'pouls' : 'reglages'));
+            ui.pastille = h('button', { type: 'button', class: 'pastille rafale', hidden: true }, h('span', { class: 'valeur' }));
+            ui.pastille.addEventListener('click', () => basculerPanneau('reglages'));
             ui.couche.append(ui.pastille);
         }
         const p = ui.pastille;
         p.hidden = false;
-        p.classList.toggle('rafale', rafale);
-        p.classList.toggle('pic', pouls && enPic());
-        const mini = p.querySelector('.mini');
-        mini.hidden = !pouls;
-        if (pouls) {
-            // Les seaux ne bougent qu'à l'arrivée d'un message ou d'un nouveau seau : inutile
-            // de redessiner chaque seconde la même chose.
-            const dernier = seaux[seaux.length - 1];
-            const empreinte = `${seaux.length}:${dernier ? dernier.debut : 0}:${dernier ? dernier.n : 0}:${moments.length}`;
-            if (empreinte !== ui.empreintePastille) {
-                ui.empreintePastille = empreinte;
-                dessinerPouls(mini, seaux.slice(-30), { marquer: true });
-            }
-        }
-        const minute = Math.round(debit(60) * 60);
-        p.querySelector('.valeur').textContent = rafale ? `Rafale · ${Math.round(debit(5))} msg/s` : `${nombreFr(minute)}/min`;
-        const emote = pouls ? emoteDominante(6) : '';
-        p.querySelector('.etiquette').textContent = emote && !rafale ? emote : '';
-        p.setAttribute('aria-label', rafale
-            ? `Rafale en cours, ${Math.round(debit(5))} messages par seconde. Ouvrir le panneau.`
-            : `Pouls du chat : ${minute} messages par minute${emote ? `, emote du moment ${emote}` : ''}. Ouvrir le panneau.`);
+        const parSeconde = Math.round(debit(5));
+        p.querySelector('.valeur').textContent = `Rafale · ${parSeconde} msg/s`;
+        p.setAttribute('aria-label', `Rafale en cours, ${parSeconde} messages par seconde. Ouvrir les réglages.`);
     };
 
+    /** Trois curseurs, dessinés sur la grille de 24 des icônes de Twitch. */
     const iconeReglages = () => {
         const ns = 'http://www.w3.org/2000/svg';
         const svg = document.createElementNS(ns, 'svg');
-        svg.setAttribute('viewBox', '0 0 20 20');
-        svg.setAttribute('width', '20');
-        svg.setAttribute('height', '20');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('width', '24');
+        svg.setAttribute('height', '24');
         svg.setAttribute('aria-hidden', 'true');
-        for (const [y, x] of [[5, 13], [10, 7], [15, 11]]) {
+        for (const [y, x] of [[6, 15.5], [12, 8.5], [18, 13.5]]) {
             const trait = document.createElementNS(ns, 'path');
-            trait.setAttribute('d', `M3 ${y}H17`);
+            trait.setAttribute('d', `M3.5 ${y}H20.5`);
             trait.setAttribute('stroke', 'currentColor');
-            trait.setAttribute('stroke-width', '1.6');
+            trait.setAttribute('stroke-width', '2');
             trait.setAttribute('stroke-linecap', 'round');
             const bouton = document.createElementNS(ns, 'circle');
             bouton.setAttribute('cx', String(x));
             bouton.setAttribute('cy', String(y));
-            bouton.setAttribute('r', '2.2');
+            bouton.setAttribute('r', '2.6');
             bouton.setAttribute('fill', 'currentColor');
             svg.append(trait, bouton);
         }
         return svg;
     };
 
+    /**
+     * Le bouton du panneau est une copie de l'engrenage de Twitch, dont seule l'icône change :
+     * mêmes classes, donc même taille, même alignement, même survol et même thème, sans
+     * écrire aucun nom de classe haché. Ses attributs data-*, aria-* et id sont retirés : le
+     * code de Twitch, et le nôtre, cherchent l'engrenage par data-a-target, et ne doivent pas
+     * tomber sur la copie. Si l'engrenage n'a pas d'icône à remplacer, le bouton prend le
+     * style de repli (btc-bouton--seul).
+     */
+    const creerBouton = (ancre) => {
+        const b = ancre.cloneNode(true);
+        for (const el of [b, ...b.querySelectorAll('*')]) {
+            for (const a of [...el.attributes]) {
+                if (a.name === 'id' || a.name.startsWith('data-') || a.name.startsWith('aria-')) el.removeAttribute(a.name);
+            }
+        }
+        const icone = b.querySelector('svg');
+        if (icone) {
+            icone.replaceWith(iconeReglages());
+        } else {
+            b.replaceChildren(iconeReglages());
+            b.classList.add('btc-bouton--seul');
+        }
+        b.classList.add('btc-bouton');
+        if (b.tagName === 'BUTTON') b.type = 'button';
+        b.setAttribute('aria-label', 'Réglages de BetterTwitchChat');
+        b.title = 'BetterTwitchChat (Alt+Maj+B)';
+        b.dataset.btcModele = ancre.className;
+        b.addEventListener('click', (e) => { e.preventDefault(); basculerPanneau(); });
+        return b;
+    };
+
     const assurerBouton = () => {
         const ancre = document.querySelector('[data-a-target="chat-settings"]');
         if (!ancre || !ancre.parentElement) return;
-        if (boutonPanneau && boutonPanneau.isConnected && boutonPanneau.nextElementSibling === ancre) return;
-        if (!boutonPanneau) {
-            boutonPanneau = h('button', { type: 'button', class: 'btc-bouton', 'aria-label': 'Réglages de BetterTwitchChat',
-                title: 'BetterTwitchChat (Alt+Maj+B)' }, iconeReglages());
-            boutonPanneau.addEventListener('click', (e) => { e.preventDefault(); basculerPanneau(); });
+        // L'engrenage a changé de classes (thème, nouvelle version de Twitch) : la copie suit.
+        if (boutonPanneau && boutonPanneau.dataset.btcModele !== ancre.className) {
+            boutonPanneau.remove();
+            boutonPanneau = null;
         }
+        if (boutonPanneau && boutonPanneau.isConnected && boutonPanneau.nextElementSibling === ancre) return;
+        if (!boutonPanneau) boutonPanneau = creerBouton(ancre);
         ancre.parentElement.insertBefore(boutonPanneau, ancre);
     };
 
@@ -4501,6 +4017,7 @@
     // DÉMARRAGE
     // =========================================================================
     chargerReglages();
+    effacerAncienHistorique();
     injectCSS();
     watchNavigation();
     document.addEventListener('visibilitychange', surVisibilite);
@@ -4524,17 +4041,6 @@
             changer: (cle, valeur) => changerReglage(cle, valeur),
             retablir: () => retablirReglages(),
             liste: () => ENTREES.map((e) => ({ ...e, valeur: lireChemin(CONFIG, e.cle), defaut: lireChemin(DEFAUTS, e.cle) }))
-        },
-        historique: {
-            chercher: chercherHistorique,
-            derniersDe,
-            compter: compterHistorique,
-            chaines: listerChaines,
-            vider: viderTampon,
-            purger: purgerHistorique,
-            effacer: effacerHistorique,
-            // Pour le banc de test : ajoute des entrées comme si elles étaient arrivées.
-            ajouter: (entrees) => { tampon.push(...entrees.map(enregistrement)); }
         },
         pouls: { seaux, moments: () => moments, detecter: detecterMoments, texte: texteMoments },
         rafale: () => rafaleActive,
@@ -4571,7 +4077,6 @@
                 vitesseChat: Math.round(vitesseContenu),
                 debitMsgParS: Number(debit(5).toFixed(1)),
                 rafale: rafaleActive,
-                historique: CONFIG.historique.enabled,
                 pouls: CONFIG.pouls.enabled
             };
             console.table(info);

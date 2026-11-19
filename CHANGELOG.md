@@ -1,5 +1,27 @@
 # Journal des versions
 
+## 15.26.2 — 19 novembre 2026
+
+### Retiré
+- **Historique long et recherche.** La fonction, son onglet du panneau, la carte au survol
+  des pseudos et `__BTC.historique` sont retirés. La base que les v15.26.0 et v15.26.1 avaient
+  pu créer dans le navigateur (IndexedDB `btc-historique`) est effacée au premier lancement.
+- **Pouls dans le chat.** La pastille n'affiche plus la cadence ni l'emote du moment : le pouls
+  se lit dans le panneau. Elle ne sert plus qu'à signaler une rafale en cours. Le réglage
+  « Afficher le pouls dans le chat » disparaît.
+
+### Corrigé
+- Le bouton du panneau, à côté de l'engrenage des réglages du chat, était plus haut que lui
+  d'environ 6 px : aligné sur la ligne de base du texte, et non centré comme les boutons de
+  Twitch. C'est maintenant une copie de l'engrenage (mêmes classes, donc même taille,
+  alignement, survol et thème) dont seule l'icône change. La copie ne porte pas
+  `data-a-target` : rien ne peut la prendre pour l'engrenage.
+
+### Outillage
+- Banc : cas de l'historique retirés (F13a-F13e, 26B2, 26P2, 26S3), deux cas ajoutés (N1 :
+  ancienne base effacée ; N2 : bouton aligné en ligne comme en flex), 84 au total. La page
+  imitée reprend la structure réelle de l'engrenage de Twitch.
+
 ## 15.26.1 — 19 novembre 2026
 
 Corrections issues de l'audit de la v15.26.0 ([`AUDIT-15.26.md`](AUDIT-15.26.md), suivi au §0).

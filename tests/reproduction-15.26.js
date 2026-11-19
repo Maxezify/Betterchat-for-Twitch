@@ -10,8 +10,9 @@
  * Chaque cas dit si le défaut est REPRODUIT sur le script testé. Tous sont corrigés en
  * v15.26.1 et couverts par le banc (cas 26B1 à 26P2 de tests/cas.js) : ce fichier reste comme
  * contre-épreuve, il reproduit les 11 défauts sur la v15.26.0 et aucun sur la v15.26.1
- * (--script pour comparer). Les durées dépendent de la machine : seuls les ordres de
- * grandeur comptent.
+ * (--script pour comparer). B2 et P2 portent sur l'historique, retiré en v15.26.2 : ils sont
+ * « sans objet » à partir de cette version. Les durées dépendent de la machine : seuls les
+ * ordres de grandeur comptent.
  */
 
 const fs = require('fs');
@@ -73,7 +74,9 @@ const CAS = [
     }))],
 
     ['B2', 'Historique : pagination « Plus anciens » et horodatages identiques', (nav) => ouvrir(nav, (page) => page.evaluate(async () => {
-        const H = window.__BTC.historique; const t0 = Date.now() - 100000;
+        const H = window.__BTC.historique;
+        if (!H) return { sansObjet: true, mesure: 'historique retiré en v15.26.2' };
+        const t0 = Date.now() - 100000;
         // Twitch insère par lots : les messages d'un même lot ont le même horodatage.
         H.ajouter(Array.from({ length: 150 }, (_, i) => ({ chaine: 'testchannel', ts: t0 + Math.floor(i / 7) * 1000, type: 'message', genre: '',
             login: 'a', nom: 'a', couleur: '', texte: `m${i}`, parent: '', mention: false })));
@@ -184,7 +187,9 @@ const CAS = [
     }, pageLourde.toString()))],
 
     ['P2', 'Historique : recherche pendant la frappe, sur 20 000 messages', (nav) => ouvrir(nav, (page) => page.evaluate(async () => {
-        const H = window.__BTC.historique; const t0 = Date.now() - 3600000;
+        const H = window.__BTC.historique;
+        if (!H) return { sansObjet: true, mesure: 'historique retiré en v15.26.2' };
+        const t0 = Date.now() - 3600000;
         H.ajouter(Array.from({ length: 20000 }, (_, i) => ({ chaine: 'testchannel', ts: t0 + i * 150, type: 'message', genre: '',
             login: 'u' + (i % 300), nom: 'U' + (i % 300), couleur: '', texte: `message ${i} avec un peu de texte élevé autour`, parent: '', mention: false })));
         await H.vider();
@@ -211,8 +216,9 @@ const CAS = [
             let r;
             try { r = await fn(nav); } catch (e) { r = { reproduit: null, mesure: `erreur : ${String(e.message || e).split('\n')[0]}` }; }
             resultats[id] = r;
+            if (r.sansObjet) total--;
             if (r.reproduit) reproduits++;
-            const marque = r.reproduit ? 'REPRODUIT     ' : r.reproduit === false ? 'non reproduit ' : 'erreur        ';
+            const marque = r.sansObjet ? 'sans objet    ' : r.reproduit ? 'REPRODUIT     ' : r.reproduit === false ? 'non reproduit ' : 'erreur        ';
             console.log(`${marque} ${id.padEnd(3)} ${titre}\n               ${r.mesure}`);
         }
         // Le texte du moment fort (B3) montre aussi la perte des accents et de la casse (B8).
