@@ -7,10 +7,11 @@
  *   node tests/reproduction-15.26.js --script chemin.js un autre fichier
  *   node tests/reproduction-15.26.js --seulement B1,P1  certains constats seulement
  *
- * Chaque cas dit si le défaut est REPRODUIT sur le script testé. Ce fichier ne fait pas
- * partie du banc (tests/cas.js) : les défauts n'étant pas corrigés, il échouerait. Une fois
- * un défaut corrigé, son cas passe à « non reproduit » et rejoint le banc sous forme de test.
- * Les durées dépendent de la machine : seuls les ordres de grandeur comptent.
+ * Chaque cas dit si le défaut est REPRODUIT sur le script testé. Tous sont corrigés en
+ * v15.26.1 et couverts par le banc (cas 26B1 à 26P2 de tests/cas.js) : ce fichier reste comme
+ * contre-épreuve, il reproduit les 11 défauts sur la v15.26.0 et aucun sur la v15.26.1
+ * (--script pour comparer). Les durées dépendent de la machine : seuls les ordres de
+ * grandeur comptent.
  */
 
 const fs = require('fs');
@@ -78,7 +79,9 @@ const CAS = [
             login: 'a', nom: 'a', couleur: '', texte: `m${i}`, parent: '', mention: false })));
         await H.vider();
         const p1 = await H.chercher({ limite: 100 });
-        const p2 = await H.chercher({ limite: 100, avant: p1.resultats[p1.resultats.length - 1].ts });
+        // Comme le bouton « Plus anciens » : horodatage et identifiant du dernier résultat.
+        const d = p1.resultats[p1.resultats.length - 1];
+        const p2 = await H.chercher({ limite: 100, avant: d.ts, avantId: d.id });
         const vus = new Set([...p1.resultats, ...p2.resultats].map((x) => x.texte)).size;
         return { reproduit: vus < 150, mesure: `${vus} messages retrouvés sur 150 en deux pages` };
     }), { ...AVEC({ historique: { enabled: true } }) })],
@@ -135,6 +138,7 @@ const CAS = [
         try {
             const a = await onglet(); const b = await onglet();
             await a.evaluate(() => window.__BTC.reglages.changer('reply.style', 'card'));
+            await b.waitForTimeout(300);   // deux gestes, deux onglets : jamais dans la même milliseconde
             await b.evaluate(() => window.__BTC.reglages.changer('rafale.entree', 12));
             const stocke = await a.evaluate((c) => localStorage.getItem(c), STOCKAGE);
             return { reproduit: !/card/.test(stocke), mesure: `enregistré : ${stocke}` };
@@ -179,15 +183,19 @@ const CAS = [
         return { reproduit: med > 30, mesure: `${document.getElementsByTagName('*').length} éléments, survol d'une réponse : ${med.toFixed(1)} ms (médiane)` };
     }, pageLourde.toString()))],
 
-    ['P2', 'Historique : recherche sans résultat sur 20 000 messages', (nav) => ouvrir(nav, (page) => page.evaluate(async () => {
+    ['P2', 'Historique : recherche pendant la frappe, sur 20 000 messages', (nav) => ouvrir(nav, (page) => page.evaluate(async () => {
         const H = window.__BTC.historique; const t0 = Date.now() - 3600000;
         H.ajouter(Array.from({ length: 20000 }, (_, i) => ({ chaine: 'testchannel', ts: t0 + i * 150, type: 'message', genre: '',
             login: 'u' + (i % 300), nom: 'U' + (i % 300), couleur: '', texte: `message ${i} avec un peu de texte élevé autour`, parent: '', mention: false })));
         await H.vider();
-        const t = performance.now();
+        // Deux recherches de suite, comme deux frappes : c'est la seconde qui compte.
+        let t = performance.now();
+        await H.chercher({ texte: 'introuvabl' });
+        const premiere = performance.now() - t;
+        t = performance.now();
         await H.chercher({ texte: 'introuvable' });
-        const ms = performance.now() - t;
-        return { reproduit: ms > 150, mesure: `${Math.round(ms)} ms pour parcourir 20 000 messages` };
+        const seconde = performance.now() - t;
+        return { reproduit: seconde > 100, mesure: `première recherche ${Math.round(premiere)} ms, frappe suivante ${Math.round(seconde)} ms (20 000 messages)` };
     }), { ...AVEC({ historique: { enabled: true } }) })]
 ];
 

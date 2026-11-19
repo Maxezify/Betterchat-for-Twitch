@@ -609,7 +609,7 @@ const etatFil = () => {
     const c = window.__conv;
     const cl = (w) => w.querySelector('.chat-line__message').className;
     return { bob: cl(c.bob), alice: cl(c.alice), carol: cl(c.carol), dave: cl(c.dave),
-        opaciteDave: Number(getComputedStyle(c.dave).opacity), html: document.documentElement.classList.contains('btc-fil') };
+        opaciteDave: Number(getComputedStyle(c.dave).opacity), estompe: !!document.querySelector('.btc-fil-racine') };
 };
 
 dyn('F5a', ['F5'], 'Fil : survol d\'une réponse, origine et autre réponse ressortent', ({ ouvrir }) =>
@@ -620,7 +620,7 @@ dyn('F5a', ['F5'], 'Fil : survol d\'une réponse, origine et autre réponse ress
         await mk.sleep(400);
         const e = (0, eval)(`(${etat})`)();
         const ok = /btc-fil-parent/.test(e.bob) && /btc-fil-actif/.test(e.alice) && /btc-fil-enfant/.test(e.carol)
-            && !/btc-fil/.test(e.dave) && e.html && e.opaciteDave < 0.5;
+            && !/btc-fil/.test(e.dave) && e.estompe && e.opaciteDave < 0.5;
         return { ok, details: `bob=${/btc-fil-parent/.test(e.bob) ? 'origine' : '—'}, carol=${/btc-fil-enfant/.test(e.carol) ? 'réponse liée' : '—'}, dave estompé=${e.opaciteDave}` };
     }, etatFil.toString()), { before: conversation, avecArg: { texteBob: 'salut tout le monde' } }));
 
@@ -655,8 +655,8 @@ dyn('F5d', ['F5'], 'Fil : la souris quitte le chat, tout redevient normal', ({ o
         mk.root().dispatchEvent(new MouseEvent('mouseleave'));
         await mk.frames(2);
         const apres = document.querySelectorAll('[class*="btc-fil-"]').length;
-        const html = document.documentElement.classList.contains('btc-fil');
-        return { ok: avant > 0 && apres === 0 && !html, details: `lignes marquées avant/après=${avant}/${apres}, estompage restant=${html}` };
+        const estompe = !!document.querySelector('.btc-fil-racine');
+        return { ok: avant > 0 && apres === 0 && !estompe, details: `lignes marquées avant/après=${avant}/${apres}, estompage restant=${estompe}` };
     }), { before: conversation, avecArg: { texteBob: 'salut tout le monde' } }));
 
 dyn('F5e', ['F5'], 'Fil : message sans lien, rien n\'est estompé', ({ ouvrir }) =>
@@ -666,8 +666,8 @@ dyn('F5e', ['F5'], 'Fil : message sans lien, rien n\'est estompé', ({ ouvrir })
         mk.survoler(window.__conv.dave.querySelector('.text-fragment'));
         await mk.sleep(400);
         const marques = document.querySelectorAll('[class*="btc-fil-"]').length;
-        const html = document.documentElement.classList.contains('btc-fil');
-        return { ok: marques === 0 && !html, details: `lignes marquées=${marques}, estompage=${html}` };
+        const estompe = !!document.querySelector('.btc-fil-racine');
+        return { ok: marques === 0 && !estompe, details: `lignes marquées=${marques}, estompage=${estompe}` };
     }), { before: conversation, avecArg: { texteBob: 'salut tout le monde' } }));
 
 const PROFIL = (login, nom) => () => localStorage.setItem('twilight-user', JSON.stringify({ login: 'testeur', displayName: 'Testeur' }));
@@ -722,8 +722,11 @@ dyn('F7c', ['F7'], 'Absence : « Aller au message » ramène la mention à l\'é
         await mk.frames(2);
         const bouton = [...mk.ui().querySelectorAll('.carte.absence button.lien')].find((b) => /Aller/.test(b.textContent));
         if (bouton) bouton.click();
-        await mk.frames(2);
-        return { ok: !!bouton && mention.classList.contains('btc-repere'), details: `bouton=${!!bouton}, message repéré=${mention.classList.contains('btc-repere')}` };
+        await mk.sleep(200);
+        // Le repère doit se voir : une classe posée ne suffit pas (T1 de l'audit 15.26).
+        const couleur = getComputedStyle(mention).outlineColor;
+        const visible = mention.classList.contains('btc-repere') && couleur !== 'rgba(0, 0, 0, 0)';
+        return { ok: !!bouton && visible, details: `bouton=${!!bouton}, message repéré=${visible} (contour ${couleur})` };
     }), { before: PROFIL() }));
 
 const HISTORIQUE_ON = (cle) => localStorage.setItem(cle, JSON.stringify({ historique: { enabled: true } }));
@@ -836,7 +839,7 @@ dyn('F14c', ['F14'], 'Pouls : liste copiable des moments, heure depuis le début
         const debut = Math.floor(maintenant / 10000) * 10000 - 40 * 10000;
         for (let i = 0; i < 40; i++) {
             const n = i === 34 ? 50 : 3;
-            B.pouls.seaux.push({ debut: debut + i * 10000, n, emotes: new Map([['KEKW', n]]), textes: new Map([['lets go', i === 34 ? 9 : 0]]) });
+            B.pouls.seaux.push({ debut: debut + i * 10000, n, emotes: new Map([['KEKW', n]]), textes: new Map([['lets go', { n: i === 34 ? 9 : 0, texte: 'lets go' }]]) });
         }
         B.reglages.changer('pouls.enabled', true);
         const moments = B.pouls.moments();
@@ -845,6 +848,308 @@ dyn('F14c', ['F14'], 'Pouls : liste copiable des moments, heure depuis le début
         const ok = moments.length === 1 && moments[0].parMinute === 300 && /\+\d+:\d{2}:\d{2}/.test(texte) && /KEKW/.test(texte) && /lets go/.test(texte) && duree;
         return { ok, details: `moments=${moments.length}, ligne="${texte.split('\n')[1] || ''}", lecture des durées=${duree}` };
     }), { page: { dureeLive: '2:00:00' } }));
+
+// =============================================================================
+// Audit de la v15.26 (AUDIT-15.26.md) : un cas par défaut corrigé, préfixé de 26. Ils
+// reprennent les reproductions de tests/reproduction-15.26.js, inversées.
+// =============================================================================
+const AVEC = (valeur) => ({ before: (a) => localStorage.setItem(a.cle, JSON.stringify(a.valeur)), avecArg: { cle: STOCKAGE, valeur } });
+const HORLOGE = new Date('2026-11-19T20:00:00Z');
+
+dyn('26B1', ['15.26 B1'], 'Repère « Aller au message » : le contour se voit pendant l\'animation', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        root.appendChild(mk.message({ user: 'alice', text: 'cible' })); await mk.frames(3);
+        const ligne = root.lastElementChild;
+        ligne.classList.add('btc-repere');
+        await mk.sleep(200);
+        const couleur = getComputedStyle(ligne).outlineColor;
+        return { ok: couleur !== 'rgba(0, 0, 0, 0)', details: `couleur du contour à 200 ms : ${couleur}` };
+    })));
+
+dyn('26B2', ['15.26 B2'], 'Historique : « Plus anciens » ne perd rien quand des messages partagent la même milliseconde', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const B = window.__BTC; const t0 = Date.now() - 100000;
+        // Twitch insère par lots : les messages d'un lot ont le même horodatage.
+        B.historique.ajouter(Array.from({ length: 150 }, (_, i) => ({ chaine: 'testchannel', ts: t0 + Math.floor(i / 7) * 1000,
+            type: 'message', login: 'a', nom: 'a', couleur: '', texte: `m${i}` })));
+        await B.historique.vider();
+        B.reglages.ouvrir('historique');
+        const vue = mk.ui().querySelector('[data-vue="historique"]');
+        const n = () => vue.querySelectorAll('.resultats li').length;
+        const attendre = async (cond) => { for (let i = 0; i < 150 && !cond(); i++) await mk.sleep(20); };
+        await attendre(() => n() >= 100);
+        const page1 = n();
+        const plus = [...vue.querySelectorAll('button')].find((b) => /Plus anciens/.test(b.textContent));
+        if (plus) plus.click();
+        await attendre(() => n() > page1);
+        const distincts = new Set([...vue.querySelectorAll('.resultats li .texte')].map((x) => x.textContent)).size;
+        return { ok: page1 === 100 && distincts === 150, details: `page 1 : ${page1}, après « Plus anciens » : ${distincts} messages distincts sur 150` };
+    }), AVEC({ historique: { enabled: true } })));
+
+dyn('26B3', ['15.26 B3'], 'Pouls : un moment fort reste dans la liste après deux heures', ({ ouvrir }) =>
+    ouvrir(async (page) => {
+        const ajouter = (n, texte) => page.evaluate(({ n, texte }) => {
+            const mk = window.__mk; const root = mk.root();
+            for (let i = 0; i < n; i++) root.appendChild(mk.message({ user: 'u' + (i % 20), text: texte || ('msg ' + i) }));
+        }, { n, texte });
+        await page.clock.runFor(3000);
+        for (let k = 0; k < 12; k++) { await ajouter(3); await page.clock.runFor(10000); }
+        await ajouter(60, 'BUT !'); await page.clock.runFor(10000);
+        for (let k = 0; k < 3; k++) { await ajouter(3); await page.clock.runFor(10000); }
+        const avant = await page.evaluate(() => window.__BTC.pouls.moments().length);
+        // Deux heures et quart de silence d'un bond, puis quelques tics ordinaires.
+        await page.clock.fastForward(2 * 3600000 + 15 * 60000);
+        await page.clock.runFor(3000);
+        const apres = await page.evaluate(() => ({ moments: window.__BTC.pouls.moments().length, seaux: window.__BTC.pouls.seaux.length }));
+        return { ok: avant === 1 && apres.moments === 1 && apres.seaux === 720,
+            details: `moments après le pic : ${avant} ; 2 h 15 plus tard : ${apres.moments} (graphe : ${apres.seaux} tranches)` };
+    }, { horloge: HORLOGE, ...AVEC({ pouls: { enabled: true } }) }));
+
+dyn('26B4', ['15.26 B4'], 'Pouls : changement de chaîne dans le même conteneur, la mesure repart de zéro', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root(); const B = window.__BTC;
+        B.interne.terminerStabilisation();
+        for (let i = 0; i < 12; i++) root.appendChild(mk.message({ user: 'u' + i, text: 'chaîne A ' + i }));
+        await mk.frames(4); await mk.sleep(1100);
+        const avant = B.pouls.seaux.reduce((n, s) => n + s.n, 0);
+        history.pushState({}, '', '/autrechaine');
+        await mk.sleep(1500);
+        const apres = B.pouls.seaux.reduce((n, s) => n + s.n, 0);
+        const debit = B.interne.debit(60);
+        return { ok: avant === 12 && apres === 0 && debit === 0, details: `messages comptés avant : ${avant}, après le changement : ${apres}, débit restant : ${debit}` };
+    }), AVEC({ pouls: { enabled: true } })));
+
+dyn('26B5', ['15.26 B5'], 'Réglages : chaque option s\'applique aux messages affichés, dans les deux sens', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root(); const R = window.__BTC.reglages;
+        const res = {};
+        // Compactage activé après coup.
+        R.changer('compact.enabled', false);
+        const n1 = mk.singleGift('xavier', 'bob'); root.appendChild(n1); await mk.frames(4);
+        R.changer('compact.enabled', true);
+        res.compactage = !!n1.querySelector('.btc-notice-line');
+        // Préfixe, emotes et couleur de la citation.
+        root.appendChild(mk.message({ user: 'bob', text: 'gg', emotes: ['Kappa'] }));
+        const rep = mk.reply({ user: 'alice', to: 'bob', quoted: 'gg Kappa', text: 'oui' });
+        root.appendChild(rep); await mk.frames(4);
+        const q = () => rep.querySelector('.btc-reply-quote');
+        R.changer('reply.colorQuotedName', true);
+        const coloree = !!q().querySelector('.btc-reply-target').style.color;
+        const image = !!q().querySelector('img');
+        R.changer('reply.hidePrefix', false);
+        R.changer('reply.renderEmotes', false);
+        R.changer('reply.colorQuotedName', false);
+        res.prefixe = /^Répond à/.test(q().textContent.trim());
+        res.emotes = image && !q().querySelector('img') && /Kappa/.test(q().textContent);
+        res.couleur = coloree && !q().querySelector('.btc-reply-target').style.color;
+        // Traduction.
+        const prime = mk.notice({ html: `<p>${mk.name('dan')} subscribed with Prime.</p>` });
+        root.appendChild(prime); await mk.frames(4);
+        const fr = /abonné avec Prime/.test(prime.textContent);
+        R.changer('translate', false);
+        res.traduction = fr && /subscribed with Prime/.test(prime.textContent);
+        // Étiquette 7TV.
+        const etiq = mk.message({ user: 'eve', text: 'relevé' });
+        etiq.querySelector('.chat-line__message').setAttribute('data-seventv-custom-highlight-label', '⭐');
+        root.appendChild(etiq); await mk.frames(4);
+        const retiree = !etiq.querySelector('[data-seventv-custom-highlight-label]');
+        R.changer('hideHighlightLabel', false); await mk.frames(2);
+        res.etiquette = retiree && !!etiq.querySelector('[data-seventv-custom-highlight-label="⭐"]');
+        // Regroupement des gifts.
+        root.appendChild(mk.massGift('zed', 2)); root.appendChild(mk.singleGift('zed', 'a1')); root.appendChild(mk.singleGift('zed', 'a2'));
+        await mk.frames(4);
+        const masques = root.querySelectorAll('.btc-hidden').length;
+        R.changer('compact.aggregateGifts', false);
+        res.gifts = masques === 2 && !root.querySelector('.btc-hidden') && !root.querySelector('.btc-gift-recipients');
+        return { ok: Object.values(res).every(Boolean), details: Object.entries(res).map(([k, v]) => `${k}=${v}`).join(', ') };
+    })));
+
+dyn('26B6', ['15.26 B6'], 'Réglages : deux onglets ouverts, aucun n\'écrase l\'autre', ({ ouvrirOnglets }) =>
+    ouvrirOnglets(2, async ([a, b]) => {
+        await a.evaluate(() => window.__BTC.reglages.changer('reply.style', 'card'));
+        await b.waitForTimeout(300);
+        const styleB = await b.evaluate(() => window.__BTC.config.reply.style);
+        await b.evaluate(() => window.__BTC.reglages.changer('rafale.entree', 12));
+        await a.waitForTimeout(300);
+        const stocke = JSON.parse(await a.evaluate((cle) => localStorage.getItem(cle), STOCKAGE) || '{}');
+        const entreeA = await a.evaluate(() => window.__BTC.config.rafale.entree);
+        const ok = styleB === 'card' && !!stocke.reply && stocke.reply.style === 'card' && !!stocke.rafale && stocke.rafale.entree === 12 && entreeA === 12;
+        return { ok, details: `l'onglet B voit style=${styleB} ; enregistré=${JSON.stringify(stocke)} ; l'onglet A voit entree=${entreeA}` };
+    }));
+
+dyn('26B7', ['15.26 B7'], 'Mentions : « @pseudo » ou réponse, pas le pseudo nu', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root(); const lire = window.__BTC.interne.lireMessage;
+        const essai = (w) => { root.appendChild(w); return lire(w.querySelector('.chat-line__message')).mentionneMoi; };
+        const nu = essai(mk.message({ user: 'alice', text: 'le chat est calme ce soir' }));
+        const arobase = essai(mk.message({ user: 'bob', text: 'hé @Chat tu es là ?' }));
+        const reponse = essai(mk.reply({ user: 'carol', to: 'chat', quoted: 'coucou', text: 'salut' }));
+        return { ok: !nu && arobase && reponse, details: `pseudo nu=${nu}, @pseudo=${arobase}, réponse=${reponse}` };
+    }), { before: () => localStorage.setItem('twilight-user', JSON.stringify({ login: 'chat', displayName: 'Chat' })) }));
+
+dyn('26B8', ['15.26 B8'], 'Pouls : le message représentatif garde ses accents et sa casse', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root(); const B = window.__BTC;
+        B.interne.terminerStabilisation();
+        for (let i = 0; i < 4; i++) root.appendChild(mk.message({ user: 'u' + i, text: i ? 'énorme le BUT' : 'ÉNORME le but' }));
+        await mk.frames(4);
+        const s = B.pouls.seaux.find((x) => x.n > 0);
+        const t = s ? [...s.textes.values()][0] : null;
+        return { ok: !!t && t.n === 4 && t.texte === 'ÉNORME le but', details: t ? `${t.n} variantes comptées ensemble, affiché « ${t.texte} »` : 'aucun texte compté' };
+    }), AVEC({ pouls: { enabled: true } })));
+
+dyn('26B9', ['15.26 B9'], 'Pouls : un petit chat qui arrive par paquets ne fait pas de moments forts', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        const d = window.__BTC.pouls.detecter;
+        const paquets = d(Array.from({ length: 720 }, (_, i) => ({ n: i % 6 === 0 ? 18 : 0 }))).length;
+        const vraiPic = d(Array.from({ length: 60 }, (_, i) => ({ n: i === 40 ? 60 : (i % 6 === 0 ? 18 : 0) }))).length;
+        return { ok: paquets === 0 && vraiPic === 1, details: `2 h de paquets de 18 messages : ${paquets} moment(s) ; un vrai pic de 60 au milieu : ${vraiPic}` };
+    })));
+
+dyn('26R1', ['15.26 R1'], 'Emotes comptées même encore écrites en texte (7TV pas encore passé)', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        root.appendChild(mk.message({ user: 'bob', text: 'gg', emotes: ['catJAM'] })); await mk.frames(3);
+        const w = mk.message({ user: 'alice', text: 'catJAM catJAM trop bien' }); root.appendChild(w); await mk.frames(3);
+        const m = window.__BTC.interne.lireMessage(w.querySelector('.chat-line__message'));
+        return { ok: m.emotes.length === 2 && m.emotes.every((e) => e === 'catJAM'), details: `emotes lues : ${JSON.stringify(m.emotes)}` };
+    })));
+
+dyn('26R4', ['15.26 R4'], 'Raccourcis : Alt+Maj+B laissé aux champs de saisie, Échap gardé pour le panneau', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        const ouvert = () => !!mk.ui() && !!mk.ui().querySelector('.panneau') && !mk.ui().querySelector('.panneau').hidden;
+        const champ = document.querySelector('[data-a-target="chat-input"]');
+        const ev = new KeyboardEvent('keydown', { key: 'B', code: 'KeyB', altKey: true, shiftKey: true, bubbles: true, cancelable: true });
+        champ.dispatchEvent(ev);
+        const dansChamp = ouvert() || ev.defaultPrevented;
+        window.__BTC.reglages.ouvrir();
+        let vuParLaPage = false;
+        document.addEventListener('keydown', () => { vuParLaPage = true; });
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+        return { ok: !dansChamp && !ouvert() && !vuParLaPage,
+            details: `raccourci intercepté dans le champ=${dansChamp}, Échap ferme=${!ouvert()}, Échap vu aussi par la page=${vuParLaPage}` };
+    })));
+
+dyn('26R5', ['15.26 R5'], 'Absence : la carte se ferme seule au bout d\'une minute', ({ ouvrir }) =>
+    ouvrir(async (page) => {
+        await page.clock.runFor(3000);
+        await page.evaluate(() => {
+            const mk = window.__mk; window.__BTC.config.absence.minimumS = 10;
+            mk.masquer(true);
+            for (let i = 0; i < 5; i++) mk.root().appendChild(mk.message({ text: 'pendant ' + i }));
+        });
+        await page.clock.runFor(20000);
+        await page.evaluate(() => window.__mk.masquer(false));
+        await page.clock.runFor(500);
+        const carte = () => page.evaluate(() => !!window.__mk.ui() && !!window.__mk.ui().querySelector('.carte.absence'));
+        const auRetour = await carte();
+        await page.clock.runFor(61000);
+        const ensuite = await carte();
+        return { ok: auRetour && !ensuite, details: `carte au retour=${auRetour}, encore là une minute plus tard=${ensuite}` };
+    }, { horloge: HORLOGE }));
+
+/** Page lourde (environ 9 500 éléments) et 150 lignes, dont des réponses. */
+const pageLourde = async () => {
+    const mk = window.__mk; const root = mk.root();
+    for (let i = 0; i < 150; i++) {
+        root.appendChild(i % 5 === 4
+            ? mk.reply({ user: 'u' + i, to: 'u' + (i - 4), quoted: 'message ' + (i - 4), text: 'réponse ' + i })
+            : mk.message({ user: 'u' + i, text: 'message ' + i }));
+    }
+    await mk.frames(8);
+    const lest = document.createElement('div');
+    for (let i = 0; i < 2000; i++) {
+        const d = document.createElement('div');
+        d.append(document.createElement('span'));
+        d.firstChild.append(document.createElement('b'), document.createElement('i'));
+        lest.appendChild(d);
+    }
+    document.body.appendChild(lest);
+    void document.body.offsetHeight;
+    return lest;
+};
+
+dyn('26P1', ['15.26 P1'], 'Fil : survol d\'une réponse sur une page lourde, sous 40 ms', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async (src) => {
+        const lest = await (0, eval)(`(${src})`)();
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.config.fil.delaiMs = 0;
+        const reponses = [...root.querySelectorAll('.chat-line__message')].filter((_, i) => i % 5 === 4);
+        const d = [];
+        for (let k = 0; k < 15; k++) {
+            mk.survoler(reponses[k + 5].querySelector('[data-a-target="chat-line-message-body"]'));
+            await new Promise((r) => setTimeout(r, 0));
+            const t0 = performance.now();
+            await new Promise((r) => setTimeout(r, 0));
+            void document.body.offsetHeight; getComputedStyle(root.firstElementChild).opacity;
+            d.push(performance.now() - t0);
+            mk.survoler(lest.firstElementChild); await new Promise((r) => setTimeout(r, 0)); void document.body.offsetHeight;
+        }
+        d.sort((a, b) => a - b);
+        return { ok: d[7] < 40, details: `${document.getElementsByTagName('*').length} éléments, survol : ${d[7].toFixed(1)} ms (médiane, 117 ms en v15.26.0)` };
+    }, pageLourde.toString())));
+
+dyn('26P2', ['15.26 P2'], 'Historique : recherche pendant la frappe, sous 50 ms sur 20 000 messages', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const H = window.__BTC.historique; const t0 = Date.now() - 3600000;
+        H.ajouter(Array.from({ length: 20000 }, (_, i) => ({ chaine: 'testchannel', ts: t0 + i * 150, type: 'message',
+            login: 'u' + (i % 300), nom: 'U' + (i % 300), couleur: '', texte: `message ${i} avec un peu de texte élevé autour` })));
+        await H.vider();
+        let t = performance.now();
+        await H.chercher({ texte: 'introuvabl' });
+        const premiere = performance.now() - t;
+        t = performance.now();
+        const r = await H.chercher({ texte: 'introuvable' });
+        const seconde = performance.now() - t;
+        const trouve = await H.chercher({ texte: 'ELEVE', limite: 5 });
+        const ok = seconde < 50 && r.resultats.length === 0 && trouve.resultats.length === 5 && trouve.encore;
+        return { ok, details: `première recherche ${Math.round(premiere)} ms, frappe suivante ${Math.round(seconde)} ms (350 ms en v15.26.0), « ELEVE » : ${trouve.resultats.length} résultats et plus` };
+    }), AVEC({ historique: { enabled: true } })));
+
+dyn('26S1', ['15.26 S1'], 'Identité : le cookie « login » d\'abord, le profil Twitch (qui porte le jeton) en repli', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        const moi = window.__BTC.interne.monIdentite() || {};
+        return { ok: moi.login === 'parcookie', details: `pseudo retenu : ${moi.login}` };
+    }), { before: () => {
+        document.cookie = 'login=parcookie; path=/';
+        localStorage.setItem('twilight-user', JSON.stringify({ login: 'parprofil', displayName: 'ParProfil', authToken: 'jeton' }));
+    } }));
+
+dyn('26S3', ['15.26 S3'], 'Historique coupé : la durée de conservation s\'applique toujours', ({ ouvrir }) =>
+    ouvrir(async (page) => {
+        await page.evaluate(async () => {
+            const H = window.__BTC.historique; const vieux = Date.now() - 30 * 86400000;
+            H.ajouter(Array.from({ length: 5 }, (_, i) => ({ chaine: 'testchannel', ts: vieux + i, type: 'message', login: 'a', nom: 'a', couleur: '', texte: 'ancien ' + i })));
+            await H.vider();
+            window.__BTC.reglages.changer('historique.enabled', false);
+        });
+        const avant = await page.evaluate(() => window.__BTC.historique.compter('testchannel'));
+        await page.clock.runFor(11 * 60000);
+        await page.waitForTimeout(500);   // la purge passe par IndexedDB, en temps réel
+        const apres = await page.evaluate(() => window.__BTC.historique.compter('testchannel'));
+        return { ok: avant === 5 && apres === 0, details: `messages de 30 jours : ${avant} avant, ${apres} après dix minutes, historique coupé` };
+    }, { horloge: HORLOGE, ...AVEC({ historique: { enabled: true } }) }));
+
+dyn('26A1', ['15.26 A1'], 'Panneau : une région, pas un dialogue', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        window.__BTC.reglages.ouvrir();
+        const role = window.__mk.ui().querySelector('.panneau').getAttribute('role');
+        return { ok: role === 'region', details: `role=${role}` };
+    })));
+
+dyn('26T3', ['15.26 T3'], 'Panneau : couleurs du thème clair de Twitch', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        window.__BTC.reglages.ouvrir();
+        const fond = getComputedStyle(window.__mk.ui().querySelector('.panneau')).backgroundColor;
+        const l = window.__mk.luminanceSur(fond);
+        return { ok: l > 0.8, details: `fond du panneau ${fond}, luminance ${l.toFixed(2)}` };
+    }), { page: { theme: 'clair' } }));
+
+stat('26M', ['15.26 M1', '15.26 M2', '15.26 M3', '15.26 M4', '15.26 M5', '15.26 Q2'], 'Code mort de la v15.26 retiré, aucun caractère invisible dans le code',
+    verifAbsence(['quantite', 'element: entree, notice,', 'ui = { hote', "genre: info.genre || ''", 'parent: info.parentLogin', 'mention: !!info.mentionneMoi',
+        "genre: '', emotes", "emotes: [], texte: ''", /[̀-ͯ]/]));
 
 // =============================================================================
 // Version optimisée (scripts/build.js)

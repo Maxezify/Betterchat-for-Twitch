@@ -5,8 +5,13 @@
  * servie par une interception locale de Playwright.
  */
 
-const STYLE_SOMBRE = 'html,body{margin:0;background:#18181b;color:#efeff1;font:13px/1.5 Arial,sans-serif}';
-const STYLE_CLAIR = 'html,body{margin:0;background:#ffffff;color:#0e0e10;font:13px/1.5 Arial,sans-serif}';
+// Variables de thème que Twitch pose sur la page : le panneau et les notices les lisent.
+const THEME_SOMBRE = ':root{--color-background-base:#18181b;--color-background-alt:#26262c;--color-background-alt-2:#2f2f35;'
+    + '--color-text-base:#efeff1;--color-text-alt-2:#adadb8;--color-text-link:#bf94ff}';
+const THEME_CLAIR = ':root{--color-background-base:#ffffff;--color-background-alt:#f7f7f8;--color-background-alt-2:#efeff1;'
+    + '--color-text-base:#0e0e10;--color-text-alt-2:#53535f;--color-text-link:#8205b4}';
+const STYLE_SOMBRE = THEME_SOMBRE + 'html,body{margin:0;background:#18181b;color:#efeff1;font:13px/1.5 Arial,sans-serif}';
+const STYLE_CLAIR = THEME_CLAIR + 'html,body{margin:0;background:#ffffff;color:#0e0e10;font:13px/1.5 Arial,sans-serif}';
 
 /**
  * @param {object} o

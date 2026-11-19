@@ -15,6 +15,36 @@ l'audit précédent.
 
 ---
 
+## 0. Suivi des corrections — v15.26.1 (branche `dev`)
+
+| Statut | Points |
+|---|---|
+| Corrigé | 34 — tous les bugs (B1-B9), R1-R5, P1-P3, P5, M1-M5, Q1, Q2, Q4-Q6, S1-S3, T1-T3 |
+| Partiel | 3 — P4 (mentions compilées une fois, sans cache de lecture : gain nul), A1 (panneau en `region` ; fil toujours à la souris), T4 (horloge simulée dans le banc ; F3b encore en temps réel) |
+| Conservé | 4 — R7 (stabilisation nécessaire aux reconnexions), R8 (bouton surveillé), M6 (outils de test documentés), S4 (`@noframes`, à trancher) |
+| Reporté | 1 — Q3 (assemblage depuis plusieurs fichiers : restructuration à mener seule) |
+| À vérifier | 1 — R6 (sur le DOM réel de Twitch) |
+| Positif | 1 — S5 |
+
+Le détail point par point est dans [`tests/suivi-15.26.json`](tests/suivi-15.26.json).
+`npm run audit:reproduction` ne reproduit plus aucun des 11 défauts sur la v15.26.1, et les
+reproduit tous sur la v15.26.0. Le banc compte 19 cas de plus (préfixe `26`, 90 au total) ; sur
+la v15.26.0, 18 d'entre eux échouent. Le dernier, 26T3, couvre un manque du banc (T3), pas un
+défaut du script.
+
+**Deux rectificatifs de diagnostic**, établis en corrigeant :
+
+- **P2.** Le coût de la recherche ne venait pas de la normalisation des textes. Un parcours
+  IndexedDB nu des 20 000 messages coûte déjà 277 ms, contre 1 ms pour filtrer les mêmes données
+  en mémoire. Normaliser à l'écriture n'a rien gagné (350 ms avant, 385 ms après). La correction
+  retenue est un index léger en mémoire. La première recherche coûte toujours le parcours, environ
+  320 ms. Chaque frappe suivante prend ensuite 2 à 3 ms.
+- **M1.** `quantite` était bien morte, mais pas le genre `gift-multiple`. Sans lui, l'annonce
+  d'un gift multiple, qui parle d'abonnements, serait comptée comme un abonnement dans « Pendant
+  ton absence ». Il est gardé et commenté.
+
+---
+
 ## 1. En bref
 
 Le cœur du script, corrigé en v15.25, reste sain : aucune régression n'est apparue à la relecture,
@@ -36,7 +66,7 @@ L'audit relève **44 points** (§3) : 1 élevé, 6 moyens, 21 faibles, 15 remarq
 | B3 | Le pouls ne garde que 720 tranches de 10 s et recalcule les moments forts sur cette fenêtre | Les moments forts de plus de deux heures **disparaissent** de la liste et de la copie, alors que l'interface parle de « la session ». |
 | B4 | Le changement de chaîne sans remplacement du conteneur ne remet pas le pouls à zéro | Les messages de la chaîne précédente restent comptés, sous le nom de la nouvelle chaîne. |
 | B5 | Plusieurs réglages ne s'appliquent qu'aux nouveaux messages, ou ne reviennent pas en arrière | « Compacter les notices » réactivé laisse les notices affichées telles quelles ; « Retirer Répond à » décoché ne remet pas le préfixe. Le README promet pourtant une application immédiate. |
-| P2 | La recherche dans l'historique normalise chaque message à chaque recherche | 300 à 360 ms par recherche sur 20 000 messages ; environ 1,6 s au réglage maximal (100 000). |
+| P2 | La recherche dans l'historique relit tous les messages à chaque recherche (diagnostic rectifié au §0) | 300 à 360 ms par recherche sur 20 000 messages ; environ 1,6 s au réglage maximal (100 000). |
 
 Échelle de sévérité (inchangée) :
 
@@ -457,6 +487,10 @@ classe d'estompage sur la racine du chat, pas sur `<html>`, puis :
 Plus aucun `:has()`, et l'invalidation reste limitée au chat.
 
 ### P2 — Recherche : normalisation de chaque message à chaque recherche · Moyen
+
+> **Rectificatif (v15.26.1).** La mesure faite en corrigeant contredit l'analyse ci-dessous. Le
+> coût est le parcours IndexedDB lui-même (277 ms pour 20 000 messages), la normalisation ne
+> pèse presque rien. Correction retenue : un index léger en mémoire. Voir §0.
 
 **Où** : [L3428-L3447](https://github.com/Maxezify/Betterchat-for-Twitch/blob/7850530/BetterTwitchChat.user.js#L3428-L3447),
 [L3480-L3481](https://github.com/Maxezify/Betterchat-for-Twitch/blob/7850530/BetterTwitchChat.user.js#L3480-L3481).

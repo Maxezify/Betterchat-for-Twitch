@@ -5,8 +5,11 @@
   "document": "AUDIT-15.26.md",
   "reproduction": "tests/reproduction-15.26.js",
   "statuts": {
-    "ouvert": "constat relevé, pas encore traité",
-    "corrigé": "corrigé et couvert par le banc",
+    "corrigé": "corrigé en v15.26.1 et, sauf mention, couvert par le banc",
+    "partiel": "traité en partie",
+    "conservé": "gardé tel quel, avec sa justification",
+    "reporté": "à traiter plus tard",
+    "à vérifier": "à confirmer sur le DOM réel de Twitch",
     "positif": "point fort à conserver"
   },
   "items": [
@@ -16,8 +19,10 @@
       "categorie": "Bug",
       "titre": "Repère « Aller au message » invisible (!important contre animation)",
       "preuve": "reproduction B1, contre-épreuve",
-      "statut": "ouvert",
-      "reproduction": "B1"
+      "statut": "corrigé",
+      "reproduction": "B1",
+      "note": "Contour sans !important ; l'animation reprend la main.",
+      "tests": "26B1, F7c"
     },
     {
       "id": "B2",
@@ -25,8 +30,10 @@
       "categorie": "Bug",
       "titre": "Pagination de l'historique : messages perdus quand les horodatages sont égaux",
       "preuve": "reproduction B2",
-      "statut": "ouvert",
-      "reproduction": "B2"
+      "statut": "corrigé",
+      "reproduction": "B2",
+      "note": "« Plus anciens » reprend après le dernier résultat rendu, identifiant compris.",
+      "tests": "26B2"
     },
     {
       "id": "B3",
@@ -34,8 +41,10 @@
       "categorie": "Bug",
       "titre": "Moments forts effacés au bout de deux heures",
       "preuve": "reproduction B3",
-      "statut": "ouvert",
-      "reproduction": "B3"
+      "statut": "corrigé",
+      "reproduction": "B3",
+      "note": "Journal des moments de la session, séparé du graphe de deux heures (200 moments au plus).",
+      "tests": "26B3"
     },
     {
       "id": "B4",
@@ -43,8 +52,10 @@
       "categorie": "Bug",
       "titre": "Pouls non remis à zéro au changement de chaîne",
       "preuve": "reproduction B4",
-      "statut": "ouvert",
-      "reproduction": "B4"
+      "statut": "corrigé",
+      "reproduction": "B4",
+      "note": "Nouveau crochet « chaine » déclenché aussi sans remplacement du conteneur : pouls, cadence, fil et carte d'absence repartent de zéro.",
+      "tests": "26B4"
     },
     {
       "id": "B5",
@@ -52,8 +63,10 @@
       "categorie": "Bug",
       "titre": "Réglages appliqués aux seuls nouveaux messages, ou sans retour arrière",
       "preuve": "reproduction B5",
-      "statut": "ouvert",
-      "reproduction": "B5"
+      "statut": "corrigé",
+      "reproduction": "B5",
+      "note": "Compactage, traduction, préfixe, emotes et couleur de la citation, étiquette 7TV et regroupement reviennent en arrière sur les messages affichés. Seul le regroupement activé après coup ne vaut que pour les gifts suivants (indiqué dans le panneau).",
+      "tests": "26B5"
     },
     {
       "id": "B6",
@@ -61,8 +74,10 @@
       "categorie": "Bug",
       "titre": "Deux onglets : les réglages de l'un écrasent ceux de l'autre",
       "preuve": "reproduction B6",
-      "statut": "ouvert",
-      "reproduction": "B6"
+      "statut": "corrigé",
+      "reproduction": "B6",
+      "note": "Événement storage : un onglet reprend les réglages changés dans un autre.",
+      "tests": "26B6"
     },
     {
       "id": "B7",
@@ -70,8 +85,10 @@
       "categorie": "Bug",
       "titre": "Fausses mentions quand le pseudo est un mot courant",
       "preuve": "reproduction B7",
-      "statut": "ouvert",
-      "reproduction": "B7"
+      "statut": "corrigé",
+      "reproduction": "B7",
+      "note": "Mention = « @pseudo », « @nom affiché » ou réponse ; expression compilée une fois.",
+      "tests": "26B7"
     },
     {
       "id": "B8",
@@ -79,8 +96,10 @@
       "categorie": "Bug",
       "titre": "Message représentatif d'un moment fort sans accents ni majuscules",
       "preuve": "reproduction B8",
-      "statut": "ouvert",
-      "reproduction": "B8"
+      "statut": "corrigé",
+      "reproduction": "B8",
+      "note": "Clé normalisée pour compter, première forme d'origine pour afficher.",
+      "tests": "26B8, F14c"
     },
     {
       "id": "B9",
@@ -88,8 +107,10 @@
       "categorie": "Bug",
       "titre": "Chat lent par paquets : chaque paquet devient un moment fort",
       "preuve": "reproduction B9",
-      "statut": "ouvert",
-      "reproduction": "B9"
+      "statut": "corrigé",
+      "reproduction": "B9",
+      "note": "Un pic doit aussi dépasser le plus haut des tranches précédentes qui n'étaient pas des pics.",
+      "tests": "26B9, F14a"
     },
     {
       "id": "R1",
@@ -97,7 +118,9 @@
       "categorie": "Robustesse",
       "titre": "Emotes 7TV non comptées si 7TV les pose après notre lecture",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Les emotes sont les mots du texte connus comme emotes, en image ou non. Reste à confirmer sur Twitch que 7TV passe bien après.",
+      "tests": "26R1"
     },
     {
       "id": "R2",
@@ -105,7 +128,8 @@
       "categorie": "Robustesse",
       "titre": "Connexion IndexedDB jamais rouverte, promesse de purge non gérée",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Connexion relâchée sur onclose et onversionchange, purge avec .catch, avertissements limités à un par minute. Non testé : la fermeture par le navigateur ne se simule pas simplement."
     },
     {
       "id": "R3",
@@ -113,7 +137,8 @@
       "categorie": "Robustesse",
       "titre": "Pastille et cartes recalées une fois par seconde seulement",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "ResizeObserver sur le scroller ; le tic ne recale que si la couche montre quelque chose."
     },
     {
       "id": "R4",
@@ -121,7 +146,9 @@
       "categorie": "Robustesse",
       "titre": "Alt+Maj+B intercepté jusque dans les champs de saisie ; Échap non retenu",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Alt+Maj+B ignoré dans un champ de saisie ; Échap arrêté quand il ferme le panneau.",
+      "tests": "26R4"
     },
     {
       "id": "R5",
@@ -129,7 +156,9 @@
       "categorie": "Robustesse",
       "titre": "Pastille sur la ligne la plus ancienne, carte d'absence sans fermeture automatique",
       "preuve": "captures",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Pastille à 60 % d'opacité au repos ; carte d'absence fermée au bout d'une minute, sauf survol.",
+      "tests": "26R5"
     },
     {
       "id": "R6",
@@ -137,7 +166,8 @@
       "categorie": "Robustesse",
       "titre": "Arrivées reconnues par identité de nœud",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "à vérifier",
+      "note": "À mesurer sur Twitch, journal activé : arrivées signalées contre messages reçus."
     },
     {
       "id": "R7",
@@ -145,7 +175,8 @@
       "categorie": "Robustesse",
       "titre": "2 s de messages ignorées à chaque reconnexion",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "conservé",
+      "note": "La stabilisation reste nécessaire à la reconnexion : Twitch peut remplir le nouveau conteneur après l'avoir créé, ces lignes seraient comptées deux fois."
     },
     {
       "id": "R8",
@@ -153,7 +184,8 @@
       "categorie": "Robustesse",
       "titre": "Bouton inséré dans une barre gérée par React",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "conservé",
+      "note": "Risque surveillé ; le tic réinsère le bouton s'il disparaît."
     },
     {
       "id": "P1",
@@ -161,8 +193,10 @@
       "categorie": "Performance",
       "titre": ":has() évalué sur toute la page à chaque survol de réponse",
       "preuve": "reproduction P1, mesure",
-      "statut": "ouvert",
-      "reproduction": "P1"
+      "statut": "corrigé",
+      "reproduction": "P1",
+      "note": "Entrées du fil marquées en JS, classe d'estompage sur la racine du chat : 6 à 10 ms au lieu de 117 à 134.",
+      "tests": "26P1, F5a-F5e"
     },
     {
       "id": "P2",
@@ -170,8 +204,10 @@
       "categorie": "Performance",
       "titre": "Recherche : normalisation de chaque message à chaque recherche",
       "preuve": "reproduction P2",
-      "statut": "ouvert",
-      "reproduction": "P2"
+      "statut": "corrigé",
+      "reproduction": "P2",
+      "note": "Diagnostic rectifié : le coût est la lecture IndexedDB (277 ms pour 20 000 messages), pas la normalisation. Index léger en mémoire construit à la première recherche : 2 à 3 ms par frappe ensuite.",
+      "tests": "26P2"
     },
     {
       "id": "P3",
@@ -179,7 +215,8 @@
       "categorie": "Performance",
       "titre": "Tic : lecture de mise en page et redessin de la pastille chaque seconde",
       "preuve": "mesure",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Pastille redessinée seulement si les tranches changent ; canevas dimensionné seulement si sa taille change."
     },
     {
       "id": "P4",
@@ -187,7 +224,8 @@
       "categorie": "Performance",
       "titre": "Fil : relecture des 150 lignes et RegExp compilée par message",
       "preuve": "mesure",
-      "statut": "ouvert"
+      "statut": "partiel",
+      "note": "Expression des mentions compilée une fois. Cache de lireMessage non ajouté : 0,8 ms pour 150 lignes, gain nul."
     },
     {
       "id": "P5",
@@ -195,7 +233,8 @@
       "categorie": "Performance",
       "titre": "CSS du fil émis et transition posée même fil désactivé",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "CSS du fil émis seulement fil activé, estompage seulement s'il est demandé."
     },
     {
       "id": "M1",
@@ -203,7 +242,9 @@
       "categorie": "Code mort",
       "titre": "quantite et le genre gift-multiple",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "quantite retirée. Rectificatif : le genre gift-multiple n'était pas mort, il empêche de compter une annonce de gift comme un abonnement ; il est gardé et commenté.",
+      "tests": "26M"
     },
     {
       "id": "M2",
@@ -211,7 +252,8 @@
       "categorie": "Code mort",
       "titre": "Propriété notice de lireEntree",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "tests": "26M"
     },
     {
       "id": "M3",
@@ -219,7 +261,8 @@
       "categorie": "Code mort",
       "titre": "ui.hote, ui.style",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "tests": "26M"
     },
     {
       "id": "M4",
@@ -227,7 +270,9 @@
       "categorie": "Code mort",
       "titre": "Champs genre, parent, mention enregistrés, jamais relus",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Champs retirés ; les formes normalisées texteN, loginN et nomN les remplacent.",
+      "tests": "26M"
     },
     {
       "id": "M5",
@@ -235,7 +280,8 @@
       "categorie": "Code mort",
       "titre": "Champs vides de lectureLegere",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "tests": "26M"
     },
     {
       "id": "M6",
@@ -243,7 +289,8 @@
       "categorie": "Code mort",
       "titre": "Crochets de test livrés en production",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "conservé",
+      "note": "Outils de test documentés dans le README (réglages, historique.ajouter)."
     },
     {
       "id": "Q1",
@@ -251,7 +298,9 @@
       "categorie": "Maintenabilité",
       "titre": "Deux implémentations de la confirmation en deux temps",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "confirmerEnDeuxTemps, une seule fonction pour « Rétablir » et les effacements.",
+      "tests": "F1e"
     },
     {
       "id": "Q2",
@@ -259,7 +308,9 @@
       "categorie": "Maintenabilité",
       "titre": "Caractères combinants invisibles dans sansAccents",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "/[\\u0300-\\u036f]/g.",
+      "tests": "26M"
     },
     {
       "id": "Q3",
@@ -267,7 +318,8 @@
       "categorie": "Maintenabilité",
       "titre": "Fichier unique de 4 227 lignes",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "reporté",
+      "note": "Assemblage depuis plusieurs fichiers par scripts/build.js : restructuration à mener seule, sans changement de comportement."
     },
     {
       "id": "Q4",
@@ -275,7 +327,7 @@
       "categorie": "Maintenabilité",
       "titre": "Commentaire « Spécificité renforcée » déplacé",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé"
     },
     {
       "id": "Q5",
@@ -283,7 +335,8 @@
       "categorie": "Maintenabilité",
       "titre": "Libellés du panneau inexacts (seuil de sortie, badges gardés)",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "« Au plus 80 % du seuil d'entrée » ; staff ajouté aux badges gardés."
     },
     {
       "id": "Q6",
@@ -291,7 +344,8 @@
       "categorie": "Maintenabilité",
       "titre": "Réglages de CONFIG absents du panneau, non documentés",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "README : réglages absents du panneau et effet des mises à jour sur CONFIG."
     },
     {
       "id": "S1",
@@ -299,7 +353,9 @@
       "categorie": "Sécurité",
       "titre": "Lecture de twilight-user, qui contient le jeton de session",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Cookie login d'abord ; twilight-user en repli ; nom affiché repris de tes propres messages.",
+      "tests": "26S1"
     },
     {
       "id": "S2",
@@ -307,7 +363,8 @@
       "categorie": "Sécurité",
       "titre": "Historique dans le stockage de l'origine twitch.tv, interrogeable par __BTC",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "README : stockage du site twitch.tv, lisible par ses scripts."
     },
     {
       "id": "S3",
@@ -315,7 +372,9 @@
       "categorie": "Sécurité",
       "titre": "Durée de conservation non appliquée quand l'historique est coupé",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Purge par âge et par volume même historique coupé, dès qu'une base existe (marque btc:historique:base).",
+      "tests": "26S3"
     },
     {
       "id": "S4",
@@ -323,7 +382,8 @@
       "categorie": "Sécurité",
       "titre": "@noframes : enjeu accru avec l'interface et IndexedDB",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "conservé",
+      "note": "À trancher : @noframes."
     },
     {
       "id": "S5",
@@ -339,7 +399,9 @@
       "categorie": "Accessibilité",
       "titre": "Fil réservé à la souris ; panneau dialog sans comportement de dialogue",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "partiel",
+      "note": "Panneau déclaré role=\"region\". Fil toujours réservé à la souris : les lignes du chat Twitch ne prennent pas le focus.",
+      "tests": "26A1"
     },
     {
       "id": "T1",
@@ -347,7 +409,9 @@
       "categorie": "Tests",
       "titre": "Le banc vérifie des classes, pas le rendu : F7c passe malgré B1",
       "preuve": "reproduction B1",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "F7c vérifie la couleur calculée du contour.",
+      "tests": "F7c"
     },
     {
       "id": "T2",
@@ -355,7 +419,9 @@
       "categorie": "Tests",
       "titre": "Aucun cas pour B2 à B9, P1 et P2",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "19 cas ajoutés (26B1 à 26T3, 26M) ; la reproduction ne reproduit plus rien.",
+      "tests": "26*"
     },
     {
       "id": "T3",
@@ -363,7 +429,9 @@
       "categorie": "Tests",
       "titre": "Page imitée sans variables de thème Twitch",
       "preuve": "captures",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Variables de thème de Twitch dans la page imitée ; panneau testé en thème clair.",
+      "tests": "26T3"
     },
     {
       "id": "T4",
@@ -371,7 +439,10 @@
       "categorie": "Tests",
       "titre": "Attentes réelles là où l'horloge simulée suffirait",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "partiel",
+      "note": "Horloge simulée disponible dans le banc (option horloge), utilisée par 26B3, 26R5, 26S3. F3b attend toujours en temps réel.",
+      "tests": "26B3, 26R5, 26S3"
     }
-  ]
+  ],
+  "corrige_en": "15.26.1"
 }

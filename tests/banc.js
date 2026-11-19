@@ -76,10 +76,8 @@ const eslint = async () => {
     const { chromium } = require('playwright');
     const navigateur = await chromium.launch();
 
-    /** Ouvre une page de test, y charge le script, puis appelle fn(page, journal). */
-    const ouvrir = async (fn, { before, avecArg, page: optionsPage, script = SCRIPT } = {}) => {
-        const context = await navigateur.newContext();
-        const page = await context.newPage();
+    /** Charge la page imitée et le script dans `page`. */
+    const charger = async (page, { before, avecArg, page: optionsPage, script = SCRIPT, horloge } = {}) => {
         const journal = { errors: [], consoleErrors: [], logs: [] };
         page.on('pageerror', (e) => journal.errors.push(String(e.message || e)));
         page.on('console', (m) => {
@@ -88,12 +86,41 @@ const eslint = async () => {
         });
         const html = pageHtml(optionsPage);
         await page.route('https://www.twitch.tv/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+        // Horloge simulée : minuteries, images et Date avancent à la demande (page.clock),
+        // ce qui teste des heures de chat en quelques secondes. Les aides frames() et sleep()
+        // n'avancent plus seules : le cas pilote le temps avec page.clock.runFor().
+        if (horloge) await page.clock.install({ time: horloge });
         await page.addInitScript(HELPERS);
         await page.goto(URL_PAGE);
         if (before) await page.evaluate(before, avecArg);
         await page.addScriptTag({ content: script });
-        await page.evaluate(() => window.__mk.frames(3));
-        try { return await fn(page, journal); } finally { await context.close(); }
+        if (horloge) await page.clock.runFor(100);
+        else await page.evaluate(() => window.__mk.frames(3));
+        return journal;
+    };
+
+    /** Ouvre une page de test, y charge le script, puis appelle fn(page, journal). */
+    const ouvrir = async (fn, options = {}) => {
+        const context = await navigateur.newContext(options.contexte || {});
+        const page = await context.newPage();
+        try {
+            const journal = await charger(page, options);
+            return await fn(page, journal);
+        } finally { await context.close(); }
+    };
+
+    /** Plusieurs onglets du même navigateur (stockage partagé), puis fn([pages]). */
+    const ouvrirOnglets = async (n, fn, options = {}) => {
+        const context = await navigateur.newContext();
+        try {
+            const pages = [];
+            for (let i = 0; i < n; i++) {
+                const page = await context.newPage();
+                await charger(page, options);
+                pages.push(page);
+            }
+            return await fn(pages);
+        } finally { await context.close(); }
     };
 
     const resultats = [];
@@ -105,7 +132,7 @@ const eslint = async () => {
         try {
             r = cas.variante && cas.variante !== VARIANTE
                 ? { ok: null, details: cas.variante === 'source' ? 'vérifié sur la source commentée' : 'concerne la version optimisée' }
-                : await cas.run({ ouvrir, SCRIPT, SOURCE, eslint });
+                : await cas.run({ ouvrir, ouvrirOnglets, SCRIPT, SOURCE, eslint });
         } catch (e) {
             r = { ok: undefined, details: `erreur du test : ${String(e.message || e).split('\n')[0]}` };
         }

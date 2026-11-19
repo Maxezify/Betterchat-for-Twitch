@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BetterTwitchChat (+ 7TV)
 // @namespace    https://github.com/Maxezify/BetterTwitchChat-with-7tv
-// @version      15.26.0
+// @version      15.26.1
 // @description  Réponses lisibles en entier (emotes incluses), notices sub/prime/gift compactées, regroupement des gifts multiples ; panneau de réglages, densité en rafale, fil de conversation, résumé d'absence, historique et pouls du chat. Compatible chat Twitch natif + nouvelle extension 7TV.
 // @author       Maxezify
 // @match        https://www.twitch.tv/*
@@ -55,7 +55,7 @@
     // à jour. La valeur écrite ici ne sert que de repli et doit rester égale à @version
     // (le banc de test le vérifie).
     const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version)
-        || '15.26.0';
+        || '15.26.1';
 
     // Une seule instance par page. Deux gestionnaires de scripts, ou deux installations
     // sous des noms différents, feraient tourner deux observateurs et deux boucles de
@@ -291,9 +291,10 @@
     //   entree      (info, horodatage)    la même, lue : message, notice ou système
     //   connexion   (racine)              le script se branche sur un conteneur du chat
     //   deconnexion (racine)              il s'en détache
+    //   chaine      (ancienne, nouvelle)  on passe à une autre chaîne, conteneur remplacé ou non
     //   tic         ()                    chaque seconde
     //   reglages    ()                    un réglage a changé
-    const crochets = { arrivee: [], entree: [], connexion: [], deconnexion: [], tic: [], reglages: [] };
+    const crochets = { arrivee: [], entree: [], connexion: [], deconnexion: [], chaine: [], tic: [], reglages: [] };
     const declencher = (nom, ...args) => {
         for (const f of crochets[nom]) {
             try { f(...args); } catch (e) { console.error(`[BTC] crochet ${nom}`, e); }
@@ -481,14 +482,6 @@
         const c = CONFIG.compact;
         const REPLY_STYLES = buildReplyStyles(r);
 
-        // Spécificité renforcée. Twitch stylise la citation via une classe
-        // styled-components hachée (.OLUUU au moment où ceci est écrit) qui déclare
-        // `font-size: var(--font-size-5) !important`. À spécificité égale (0,1,0) et
-        // avec !important des deux côtés, c'est l'ordre du document qui tranche — et
-        // styled-components injecte ses feuilles après la nôtre, donc nous perdions.
-        // La classe doublée porte la spécificité à (0,2,0), le sélecteur de type à
-        // (0,2,1) : nous passons devant quel que soit l'ordre, sans dépendre du hachage
-        // de Twitch qui change à chaque build.
         // Espace entre l'icône et le texte d'une notice. Nommé parce que deux règles
         // doivent s'accorder dessus : celle qui l'écarte, et celle qui aligne le message
         // d'abonnement sur ce même bord.
@@ -501,6 +494,14 @@
         // notice quand l'apparence « citation » est désactivée.
         const MESSAGE_FONT_SIZE = '14px';
         const MESSAGE_LINE_HEIGHT = '1.5';
+        // Spécificité renforcée. Twitch stylise la citation via une classe
+        // styled-components hachée (.OLUUU au moment où ceci est écrit) qui déclare
+        // `font-size: var(--font-size-5) !important`. À spécificité égale (0,1,0) et
+        // avec !important des deux côtés, c'est l'ordre du document qui tranche — et
+        // styled-components injecte ses feuilles après la nôtre, donc nous perdions.
+        // La classe doublée porte la spécificité à (0,2,0), le sélecteur de type à
+        // (0,2,1) : nous passons devant quel que soit l'ordre, sans dépendre du hachage
+        // de Twitch qui change à chaque build.
         const MSG = `.btc-notice-line.btc-notice-line ${SEL.nestedMessage}`;
         const Q = 'p.btc-reply-quote.btc-reply-quote';
         const NL = '.btc-notice-line.btc-notice-line';
@@ -979,6 +980,7 @@
         :root {
             --btc-fil-couleur: #a970ff;
         }
+        ${CONFIG.fil.enabled ? `
         .chat-line__message.btc-fil-parent {
             outline: 1px solid var(--btc-fil-couleur) !important;
             outline-offset: -1px;
@@ -991,22 +993,29 @@
             outline: 1px solid color-mix(in srgb, var(--btc-fil-couleur) 50%, transparent) !important;
             outline-offset: -1px;
         }
-        .btc-fil :is(${SEL.chatRoot.join(',')}) > :not(:has(.btc-fil-actif, .btc-fil-parent, .btc-fil-enfant)):not(.btc-fil-actif, .btc-fil-parent, .btc-fil-enfant) {
+        /* Le reste du chat s'estompe. Les entrées qui portent le fil sont marquées en JS
+           (btc-fil-garde) et la classe d'estompage est posée sur la racine du chat : un
+           :has() ici était évalué sur chaque élément de la page à chaque survol — 111 ms
+           mesurés sur une page de 9 500 éléments, contre 5 ms ainsi. */
+        ${CONFIG.fil.estomper ? `
+        .btc-fil-racine > :not(.btc-fil-garde) {
             opacity: 0.35 !important;
         }
         @media (prefers-reduced-motion: no-preference) {
             :is(${SEL.chatRoot.join(',')}) > * {
                 transition: opacity 0.12s ease-out;
             }
-        }
+        }` : ''}` : ''}
 
         /* ---------- Message rejoint depuis une carte ---------- */
         @keyframes btc-repere {
             from { outline-color: var(--btc-fil-couleur); }
             to { outline-color: transparent; }
         }
+        /* Sans !important : une déclaration importante passe devant une animation, et le
+           repère restait transparent du début à la fin. */
         .btc-repere {
-            outline: 2px solid transparent !important;
+            outline: 2px solid transparent;
             outline-offset: -2px;
             animation: btc-repere 2.4s ease-out;
         }
@@ -1213,7 +1222,10 @@
             cursor: pointer;
             font-variant-numeric: tabular-nums;
             --trace: var(--accent);
+            /* Discrète au repos : elle couvre la fin de la ligne la plus ancienne. */
+            opacity: 0.6;
         }
+        .pastille:hover, .pastille:focus-visible, .pastille.rafale, .pastille.pic { opacity: 1; }
         .pastille .mini { width: 60px; height: 16px; display: block; }
         .pastille .etiquette { color: var(--texte-2); max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .pastille .etiquette:empty { display: none; }
@@ -1430,7 +1442,14 @@
         // cible d'une option sans rapport, et seules les mentions du texte étaient
         // soulignées.
         ajouterClasse(span, 'btc-reply-target');
-        if (!CONFIG.reply.colorQuotedName) return;
+        if (!CONFIG.reply.colorQuotedName) {
+            // Option coupée depuis : on retire la couleur que nous avions posée.
+            if (span.dataset.btcCouleur) {
+                span.style.removeProperty('color');
+                delete span.dataset.btcCouleur;
+            }
+            return;
+        }
 
         // 7TV expose le login exact de la personne citée sur la ligne. On le préfère au
         // texte affiché, qui peut être un nom international ou une casse différente.
@@ -1438,7 +1457,10 @@
             || span.textContent.trim().replace(/^@/, '')).toLowerCase();
         if (!login) return;
         const color = nameColors.get(login);
-        if (color) span.style.color = color;
+        if (color) {
+            span.style.color = color;
+            span.dataset.btcCouleur = '1';
+        }
     };
 
     // =========================================================================
@@ -1536,16 +1558,36 @@
         }
     };
 
+    // Préfixes retirés, pour les rendre si l'option est coupée : citation -> [nœud, texte].
+    const prefixesRetires = new WeakMap();
+
     /** Retire « Répond à » / « Replying to » en gardant « @pseudo : texte ». */
     const stripReplyPrefix = (quote) => {
         for (const child of quote.childNodes) {
             if (child.nodeType !== Node.TEXT_NODE) continue;
             const stripped = child.textContent.replace(RE.replyPrefix, '');
             if (stripped !== child.textContent) {
+                prefixesRetires.set(quote, [child, child.textContent]);
                 child.textContent = stripped;
                 return;
             }
             if (child.textContent.trim()) return; // premier texte utile, pas un préfixe
+        }
+    };
+
+    /** Rend le préfixe retiré, dans le nœud même d'où il venait. */
+    const restaurerPrefixe = (quote) => {
+        const retire = prefixesRetires.get(quote);
+        if (!retire) return;
+        prefixesRetires.delete(quote);
+        const [noeud, texte] = retire;
+        if (noeud.parentNode === quote) noeud.textContent = texte;
+    };
+
+    /** Remet sous forme de texte les emotes que nous avions dessinées dans la citation. */
+    const retirerEmotesCitation = (quote) => {
+        for (const img of quote.querySelectorAll('img.btc-reply-emote')) {
+            img.replaceWith(document.createTextNode(img.alt));
         }
     };
 
@@ -1562,14 +1604,26 @@
 
     const HIGHLIGHT_LABEL_ATTR = 'data-seventv-custom-highlight-label';
 
+    // Copie de l'étiquette retirée : elle revient si l'option est coupée.
+    const ETIQUETTE_GARDEE = 'data-btc-etiquette';
+
     /**
-     * Enlève l'étiquette de règle « Custom Highlights ». Retirer un attribut absent ne
-     * produit aucun enregistrement de mutation : l'opération est idempotente et ne peut
-     * pas relancer notre propre observateur.
+     * Enlève l'étiquette de règle « Custom Highlights », ou la rend si l'option a été
+     * coupée. Rien n'est écrit quand il n'y a rien à faire : l'opération est idempotente,
+     * et la copie porte un attribut que notre observateur ne surveille pas.
      */
     const stripHighlightLabel = (el) => {
-        if (!CONFIG.hideHighlightLabel) return;
-        if (el.hasAttribute(HIGHLIGHT_LABEL_ATTR)) el.removeAttribute(HIGHLIGHT_LABEL_ATTR);
+        if (!CONFIG.hideHighlightLabel) {
+            if (el.hasAttribute(ETIQUETTE_GARDEE)) {
+                el.setAttribute(HIGHLIGHT_LABEL_ATTR, el.getAttribute(ETIQUETTE_GARDEE));
+                el.removeAttribute(ETIQUETTE_GARDEE);
+            }
+            return;
+        }
+        if (el.hasAttribute(HIGHLIGHT_LABEL_ATTR)) {
+            el.setAttribute(ETIQUETTE_GARDEE, el.getAttribute(HIGHLIGHT_LABEL_ATTR));
+            el.removeAttribute(HIGHLIGHT_LABEL_ATTR);
+        }
     };
 
     /**
@@ -1648,11 +1702,14 @@
         quote.dataset.btcQuote = marque;
 
         if (CONFIG.reply.hidePrefix) stripReplyPrefix(quote);
+        else restaurerPrefixe(quote);
         colorQuotedName(quote, line);
 
         if (CONFIG.reply.renderEmotes) {
             const target = findQuoteTextNode(quote) || quote;
             tokenizeQuote(target);
+        } else {
+            retirerEmotesCitation(quote);
         }
         log('réponse traitée', () => (key || '').slice(0, 60));
     };
@@ -1675,31 +1732,56 @@
         return texte;
     };
 
+    // Textes d'origine des nœuds traduits : ils reviennent si la traduction est coupée.
+    const textesOriginaux = new WeakMap();
+    let dejaTraduit = false;
+
     // Seul le texte de Twitch est traduit : le message joint est écrit par quelqu'un, et
     // une règle comme « redeemed → a utilisé » le défigurait.
     const translateNotice = (element) => {
-        if (!CONFIG.translate) return;
+        if (!CONFIG.translate && !dejaTraduit) return;
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, { acceptNode: horsMessageJoint(element) });
         let node;
         while ((node = walker.nextNode())) {
+            if (!CONFIG.translate) {
+                if (textesOriginaux.has(node)) {
+                    node.textContent = textesOriginaux.get(node);
+                    textesOriginaux.delete(node);
+                }
+                continue;
+            }
             const text = node.textContent;
             if (!text || text.length < 3) continue;
             let out = text;
             // replace() sur une expression globale repart toujours du début et rend la
             // chaîne intacte s'il ne trouve rien : un test préalable doublait le travail.
             for (const [re, to] of NOTICE_FR) out = out.replace(re, to);
-            if (out !== text) node.textContent = out.replace(/\s+([.,!?])/g, '$1');
+            if (out !== text) {
+                if (!textesOriginaux.has(node)) textesOriginaux.set(node, text);
+                dejaTraduit = true;
+                node.textContent = out.replace(/\s+([.,!?])/g, '$1');
+            }
         }
     };
 
     const translateSystemNotice = (element) => {
-        if (!CONFIG.translate) return;
         const span = element.querySelector('.seventv-system-notice') || element;
+        if (!CONFIG.translate) {
+            if (span.dataset.btcOriginal !== undefined) {
+                span.textContent = span.dataset.btcOriginal;
+                delete span.dataset.btcOriginal;
+            }
+            return;
+        }
         const text = normalizeSpaces(span.textContent || '');
         if (!text) return;
         for (const [re, build] of SYSTEM_NOTICE_FR) {
             const m = text.match(re);
-            if (m) { span.textContent = build(m); return; }
+            if (m) {
+                span.dataset.btcOriginal = span.textContent;
+                span.textContent = build(m);
+                return;
+            }
         }
     };
 
@@ -1970,15 +2052,29 @@
         processGiftNotice(notice, normalizeSpaces(texteDeNotice(notice)));
     };
 
+    /** Regroupement coupé : les gifts masqués réapparaissent, les listes s'en vont. */
+    const defaireRegroupements = () => {
+        gifts.reset();
+        for (const l of chatRoot.querySelectorAll('.btc-hidden')) l.classList.remove('btc-hidden');
+        for (const liste of chatRoot.querySelectorAll('.btc-gift-recipients')) liste.remove();
+    };
+
     /**
-     * Réapplique aux notices déjà affichées les réglages lus en JS (teinte, couleur des
-     * pseudos, traduction). Le reste de leur mise en forme suit la feuille de style.
+     * Réapplique aux notices déjà affichées les réglages lus en JS (compactage, teinte,
+     * couleur des pseudos, traduction, regroupement). Le reste de leur mise en forme suit
+     * la feuille de style.
      */
     const rafraichirNotices = () => {
         if (!chatRoot) return;
-        for (const n of chatRoot.querySelectorAll('.btc-notice-line')) {
+        if (!CONFIG.compact.aggregateGifts) defaireRegroupements();
+        for (const n of chatRoot.querySelectorAll('[data-btc-notice="1"]')) {
             translateNotice(n);
-            if (CONFIG.compact.colorNames) {
+            if (!n.classList.contains('btc-notice-line')) {
+                // Compactage activé après coup : la notice n'avait reçu que la traduction.
+                if (CONFIG.compact.enabled) protege(compactNotice, n);
+                continue;
+            }
+            if (CONFIG.compact.enabled && CONFIG.compact.colorNames) {
                 colorNoticeNames(n);
             } else {
                 for (const nom of n.querySelectorAll('.btc-notice-name')) {
@@ -2531,6 +2627,17 @@
         cartesNeutres.clear();
     };
 
+    /**
+     * Passe à une autre chaîne. Twitch peut garder le même conteneur du chat : les fonctions
+     * en sont prévenues par le crochet `chaine`, et non par `connexion`, qui ne viendrait pas.
+     */
+    const changerDeChaine = (cle) => {
+        const ancienne = chaineCourante;
+        oublierChaine();
+        chaineCourante = cle;
+        declencher('chaine', ancienne, cle);
+    };
+
     /** Se détache du conteneur courant et solde ce qui lui appartenait. */
     const teardown = () => {
         if (chatRoot) declencher('deconnexion', chatRoot);
@@ -2554,7 +2661,7 @@
         teardown();
         chatRoot = root;
         const cle = cleDeChaine();
-        if (cle !== chaineCourante) { oublierChaine(); chaineCourante = cle; }
+        if (cle !== chaineCourante) changerDeChaine(cle);
         vitesseContenu = 0;
         observer = new MutationObserver(onMutations);
         observer.observe(root, {
@@ -2594,7 +2701,7 @@
         if (chatRoot && chatRoot.isConnected) {
             // Même conteneur, mais peut-être une autre chaîne si Twitch le réutilise.
             const cle = cleDeChaine();
-            if (cle !== chaineCourante) { oublierChaine(); chaineCourante = cle; }
+            if (cle !== chaineCourante) changerDeChaine(cle);
             return;
         }
         const found = findChatRoot();
@@ -2644,7 +2751,7 @@
 
     // ---------------------------------------------------------------- petits outils
     const echapperRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const sansAccents = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const sansAccents = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const mediane = (valeurs) => {
         if (!valeurs.length) return 0;
         const v = [...valeurs].sort((a, b) => a - b);
@@ -2723,7 +2830,7 @@
             bool('compact.quoteLook', 'Apparence discrète, comme une citation'),
             bool('compact.colorNames', 'Colorer les pseudos des notices'),
             nombre('compact.tintOpacity', 'Teinte de fond', 0, 0.5, 0.05, '', '0 : aucune teinte.'),
-            bool('compact.aggregateGifts', 'Regrouper les gifts multiples'),
+            bool('compact.aggregateGifts', 'Regrouper les gifts multiples', 'S\'applique aux gifts suivants ; décoché, les gifts regroupés réapparaissent.'),
             bool('translate', 'Traduire les notices restées en anglais')
         ] },
         { section: 'Affichage', entrees: [
@@ -2735,8 +2842,8 @@
         { section: 'Densité en rafale', aide: 'Quand le chat s\'emballe, il se resserre pour rester lisible, puis revient à la normale.', entrees: [
             bool('rafale.enabled', 'Activer la densité adaptative'),
             nombre('rafale.entree', 'Seuil d\'entrée', 2, 60, 1, 'msg/s'),
-            nombre('rafale.sortie', 'Seuil de sortie', 1, 50, 1, 'msg/s', 'Ramené sous le seuil d\'entrée s\'il le dépasse.'),
-            bool('rafale.badges', 'Masquer les badges secondaires (modo, VIP et diffuseur restent)'),
+            nombre('rafale.sortie', 'Seuil de sortie', 1, 50, 1, 'msg/s', 'Au plus 80 % du seuil d\'entrée.'),
+            bool('rafale.badges', 'Masquer les badges secondaires (modo, VIP, diffuseur et staff restent)'),
             bool('rafale.notices', 'Notices sur une ligne, message joint au survol'),
             bool('rafale.citations', 'Citations sur une ligne'),
             bool('rafale.espacement', 'Lignes resserrées'),
@@ -2780,9 +2887,14 @@
         return Number((Math.round(borne / e.pas) * e.pas).toFixed(decimales));
     };
 
-    const chargerReglages = () => {
+    /**
+     * Lit les réglages enregistrés. `depuisDefauts` repart des valeurs par défaut : c'est le
+     * cas quand un autre onglet les a changés, et qu'un écart a pu disparaître.
+     */
+    const chargerReglages = (depuisDefauts = false) => {
         let stocke = null;
         try { stocke = JSON.parse(lireStockage(CLE_REGLAGES) || 'null'); } catch { stocke = null; }
+        if (depuisDefauts) for (const e of ENTREES) ecrireChemin(CONFIG, e.cle, lireChemin(DEFAUTS, e.cle));
         if (!stocke || typeof stocke !== 'object') return;
         for (const e of ENTREES) {
             const v = validerReglage(e, lireChemin(stocke, e.cle));
@@ -2837,24 +2949,44 @@
     let identite = null;
     let identiteLueA = 0;
     /**
-     * Ton pseudo, lu dans la page (profil gardé par Twitch dans le navigateur, sinon son
-     * cookie « login »). Il ne sert qu'à reconnaître les mentions et ne quitte jamais la page.
+     * Ton pseudo, lu dans la page. Le cookie « login » d'abord : il ne contient que le pseudo.
+     * Le profil que Twitch garde dans le navigateur (twilight-user) contient aussi le jeton
+     * de session : il ne sert qu'en repli. Le nom affiché, quand il diffère du pseudo, est
+     * repris de tes propres messages (voir lireMessage). Rien de tout cela ne quitte la page.
      */
     const monIdentite = () => {
         if (identite || Date.now() - identiteLueA < 30000) return identite;
         identiteLueA = Date.now();
-        try {
-            const u = JSON.parse(lireStockage('twilight-user') || 'null');
-            if (u && u.login) identite = { login: String(u.login).toLowerCase(), nom: String(u.displayName || u.login).toLowerCase() };
-        } catch { /* format inattendu : on essaie le cookie */ }
-        if (!identite) {
-            const m = (document.cookie || '').match(/(?:^|;\s*)login=([^;]+)/);
-            if (m) {
+        const m = (document.cookie || '').match(/(?:^|;\s*)login=([^;]+)/);
+        if (m) {
+            try {
                 const login = decodeURIComponent(m[1]).toLowerCase();
-                identite = { login, nom: login };
-            }
+                if (login) identite = { login, nom: login };
+            } catch { /* cookie illisible : on essaie le profil */ }
+        }
+        if (!identite) {
+            try {
+                const u = JSON.parse(lireStockage('twilight-user') || 'null');
+                if (u && u.login) identite = { login: String(u.login).toLowerCase(), nom: String(u.displayName || u.login).toLowerCase() };
+            } catch { /* format inattendu */ }
         }
         return identite;
+    };
+
+    // Expression des mentions, compilée une fois par identité.
+    let mentions = { cle: '', re: null };
+    /**
+     * « @pseudo » ou « @nom affiché ». Le pseudo sans @ n'est pas retenu : un pseudo qui est
+     * aussi un mot courant (« chat », « max », « gg ») transformait presque chaque message en
+     * mention.
+     */
+    const exprMention = (moi) => {
+        const cle = `${moi.login}|${moi.nom}`;
+        if (mentions.cle !== cle) {
+            const noms = [...new Set([moi.login, moi.nom])].map(echapperRegex).join('|');
+            mentions = { cle, re: new RegExp(`(?:^|[^\\w@])@(?:${noms})(?![\\w])`, 'i') };
+        }
+        return mentions.re;
     };
 
     // ---------------------------------------------------------------- lecture des messages
@@ -2879,9 +3011,14 @@
         const couleur = auteur ? (auteur.style.color || auteur.dataset.seventvChatColor || '') : '';
         const corps = ligne.querySelector(SEL.body);
         const texte = texteBrut(corps);
-        const emotes = corps
+        // Emotes : les mots du texte qui sont des emotes, en image ou connues par leur nom.
+        // 7TV peut poser ses images après notre lecture : le texte porte alors encore le nom,
+        // et une emote en image y figure aussi par son nom (texteBrut). Compter les mots
+        // couvre les deux cas, sans doublon.
+        const enImage = new Set(corps
             ? [...corps.querySelectorAll('img')].map((i) => i.dataset.emoteName || i.getAttribute('alt')).filter(Boolean)
-            : [];
+            : []);
+        const emotes = texte ? texte.split(' ').filter((mot) => enImage.has(mot) || emoteIndex.has(mot)) : [];
         const parts = findReplyParts(ligne);
         let parentLogin = '';
         let parentTexte = '';
@@ -2894,15 +3031,18 @@
         const moi = monIdentite();
         let mentionneMoi = false;
         if (moi && login && login !== moi.login) {
-            const noms = [...new Set([moi.login, moi.nom])].map(echapperRegex).join('|');
-            mentionneMoi = parentLogin === moi.login
-                || new RegExp(`(^|[^\\w])@?(${noms})(?![\\w])`, 'i').test(texte);
+            mentionneMoi = parentLogin === moi.login || exprMention(moi).test(texte);
+        } else if (moi && login && login === moi.login && nom && nom.toLowerCase() !== moi.nom) {
+            // Un de tes messages : ton nom affiché, s'il diffère du pseudo (nom international).
+            moi.nom = nom.toLowerCase();
         }
         return { login, nom, couleur, texte, emotes, estReponse: !!parts, parentLogin, parentTexte, mentionneMoi };
     };
 
     // Genre d'une notice, d'après son texte (français ou anglais, une fois traduite).
     // Les gifts individuels passent avant tout le reste : leur texte parle aussi d'abonnement.
+    // L'annonce d'un gift multiple n'est comptée nulle part, mais elle doit être reconnue :
+    // elle parle d'abonnements et passerait sinon pour un abonnement.
     const GENRES_NOTICE = [
         ['gift', RE.singleGift],
         ['gift-multiple', RE.massGift],
@@ -2919,10 +3059,7 @@
             const texte = normalizeSpaces(texteDeNotice(notice));
             const premier = notice.querySelector(`${SEL.massGiftName} ${SEL.chatterName}`) || nomsDeNotice(notice)[0];
             const nom = premier ? normalizeSpaces(premier.textContent) : '';
-            const genre = genreDeNotice(texte);
-            const m = genre === 'gift-multiple' ? texte.match(RE.massGift) : null;
-            return { type: 'notice', element: entree, notice, genre, texte, login: nom.toLowerCase(), nom,
-                quantite: m ? parseCount(m[1] || m[2]) : 1, emotes: [] };
+            return { type: 'notice', element: entree, genre: genreDeNotice(texte), texte, login: nom.toLowerCase(), nom, emotes: [] };
         }
         if (entree.matches(SEL.systemNotice) || entree.querySelector(SEL.systemNotice)) {
             return { type: 'systeme', element: entree, texte: normalizeSpaces(entree.textContent || ''), emotes: [] };
@@ -2939,8 +3076,8 @@
     const besoinsLecture = [];
     const lectureLegere = (entree) => {
         if (entree.matches(SEL.systemNotice) || entree.querySelector(SEL.systemNotice)) return { type: 'systeme', element: entree, emotes: [] };
-        if (entree.matches(SEL.notice) || entree.querySelector(SEL.notice)) return { type: 'notice', element: entree, genre: '', emotes: [] };
-        if (entree.matches(SEL.line) || entree.querySelector(SEL.line)) return { type: 'message', element: entree, emotes: [], texte: '' };
+        if (entree.matches(SEL.notice) || entree.querySelector(SEL.notice)) return { type: 'notice', element: entree, emotes: [] };
+        if (entree.matches(SEL.line) || entree.querySelector(SEL.line)) return { type: 'message', element: entree, emotes: [] };
         return null;
     };
     crochets.arrivee.push((entree, ts) => {
@@ -2961,6 +3098,7 @@
         while (j < arrivees.length && arrivees[j] < limite) j++;
         if (j) arrivees.splice(0, j);
     });
+    crochets.chaine.push(() => { arrivees.length = 0; });
     /** Débit moyen, en messages par seconde, sur les `s` dernières secondes. */
     const debit = (s, maintenant = Date.now()) => {
         const depuis = maintenant - s * 1000;
@@ -3004,7 +3142,7 @@
         const couche = h('div', { class: 'couche', hidden: true });
         racine.append(style, couche);
         (document.body || document.documentElement).appendChild(hote);
-        ui = { hote, racine, style, couche, panneau: null, vues: {}, controles: new Map(), pastille: null, carteAbsence: null, carteSurvol: null };
+        ui = { racine, couche, panneau: null, vues: {}, controles: new Map(), pastille: null, carteAbsence: null, carteSurvol: null };
         return ui;
     };
 
@@ -3018,7 +3156,24 @@
         if (!visible) return;
         Object.assign(ui.couche.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
     };
-    window.addEventListener('resize', () => placerCouche(), { passive: true });
+    /** Vrai si la couche montre quelque chose : sinon, inutile de la recaler. */
+    const coucheOccupee = () => !!ui && [...ui.couche.children].some((c) => !c.hidden);
+    window.addEventListener('resize', () => { if (coucheOccupee()) placerCouche(); }, { passive: true });
+    // La colonne du chat change de taille sans que la fenêtre bouge (mode cinéma, colonne
+    // repliée, lecteur agrandi) : la couche suit le scroller lui-même.
+    let observateurTaille = null;
+    crochets.connexion.push(() => {
+        if (observateurTaille) observateurTaille.disconnect();
+        observateurTaille = null;
+        const sc = getScroller();
+        if (!sc || typeof ResizeObserver === 'undefined') return;
+        observateurTaille = new ResizeObserver(() => { if (coucheOccupee()) placerCouche(); });
+        observateurTaille.observe(sc);
+    });
+    crochets.deconnexion.push(() => {
+        if (observateurTaille) observateurTaille.disconnect();
+        observateurTaille = null;
+    });
 
     /** Amène une ligne du chat à l'écran et la fait ressortir un instant. */
     const allerA = (el) => {
@@ -3037,6 +3192,31 @@
     // inscrit sa propre vue dans `vuesPanneau` ; le panneau ne la construit qu'à la
     // première ouverture.
     // =========================================================================
+    /**
+     * Action à confirmer, sans boîte de dialogue : un premier clic arme le bouton pour 4 s,
+     * un second exécute.
+     */
+    const confirmerEnDeuxTemps = (bouton, libelleConfirmation, action) => {
+        const libelle = bouton.textContent;
+        let arme = null;
+        const desarmer = () => {
+            clearTimeout(arme);
+            arme = null;
+            bouton.textContent = libelle;
+            bouton.classList.remove('danger');
+        };
+        bouton.addEventListener('click', async () => {
+            if (!arme) {
+                bouton.textContent = libelleConfirmation;
+                bouton.classList.add('danger');
+                arme = setTimeout(desarmer, 4000);
+                return;
+            }
+            desarmer();
+            await action();
+        });
+    };
+
     const ONGLETS = [['reglages', 'Réglages'], ['historique', 'Historique'], ['pouls', 'Pouls du chat']];
     const vuesPanneau = {};
     let ongletCourant = 'reglages';
@@ -3102,23 +3282,8 @@
                 }
                 vue.append(groupe);
             }
-            // Rétablir en deux temps, sans boîte de dialogue : un premier clic arme, un second confirme.
             const retablir = h('button', { type: 'button', class: 'secondaire', 'data-action': 'retablir' }, 'Rétablir les réglages par défaut');
-            let arme = null;
-            const desarmer = () => {
-                clearTimeout(arme);
-                arme = null;
-                retablir.textContent = 'Rétablir les réglages par défaut';
-                retablir.classList.remove('danger');
-            };
-            retablir.addEventListener('click', () => {
-                if (!arme) {
-                    retablir.textContent = 'Confirmer : tout remettre par défaut';
-                    retablir.classList.add('danger');
-                    arme = setTimeout(desarmer, 4000);
-                    return;
-                }
-                desarmer();
+            confirmerEnDeuxTemps(retablir, 'Confirmer : tout remettre par défaut', () => {
                 retablirReglages();
                 synchroniserReglages();
             });
@@ -3129,6 +3294,15 @@
         },
         montrer: () => synchroniserReglages()
     };
+
+    // Un autre onglet a changé les réglages : on reprend les siens. Sans cela, le prochain
+    // enregistrement fait ici écrasait ses changements.
+    window.addEventListener('storage', (e) => {
+        if (e.key !== null && e.key !== CLE_REGLAGES) return;
+        chargerReglages(true);
+        appliquerReglages();
+        synchroniserReglages();
+    });
 
     const construirePanneau = () => {
         installerInterface();
@@ -3145,7 +3319,8 @@
             montrerOnglet(ids[i]);
             nav.querySelector(`[data-onglet="${ids[i]}"]`).focus();
         });
-        const p = h('div', { class: 'panneau', role: 'dialog', 'aria-label': 'Réglages de BetterTwitchChat', hidden: true },
+        // Une région, pas un dialogue : le panneau ne bloque pas la page et ne retient pas le focus.
+        const p = h('div', { class: 'panneau', role: 'region', 'aria-label': 'Réglages de BetterTwitchChat', hidden: true },
             h('header', {},
                 h('div', { class: 'titre' }, h('strong', {}, 'BetterTwitchChat'), h('span', { class: 'version' }, `v${VERSION}`)),
                 h('button', { type: 'button', class: 'fermer', 'aria-label': 'Fermer', onclick: fermerPanneau }, '×')),
@@ -3215,12 +3390,14 @@
     // =========================================================================
     let filLigne = null;
     let filMinuteur = null;
+    let filRacine = null;
     const filMarques = [];
 
     const effacerFil = () => {
         clearTimeout(filMinuteur);
         for (const [el, c] of filMarques.splice(0)) el.classList.remove(c);
-        document.documentElement.classList.remove('btc-fil');
+        if (filRacine) filRacine.classList.remove('btc-fil-racine');
+        filRacine = null;
     };
 
     /** Même texte, ou l'un est le début de l'autre (citation tronquée) au-delà de 8 caractères. */
@@ -3268,7 +3445,14 @@
         marquerFil(ligne, 'btc-fil-actif');
         if (parent) marquerFil(parent, 'btc-fil-parent');
         for (const l of proches) marquerFil(l, 'btc-fil-enfant');
-        if (CONFIG.fil.estomper) document.documentElement.classList.add('btc-fil');
+        if (!CONFIG.fil.estomper) return;
+        // Les entrées du chat qui portent le fil restent nettes ; la racine estompe le reste.
+        for (const l of [ligne, parent, ...proches]) {
+            const entree = l && ligneDuChat(l);
+            if (entree) marquerFil(entree, 'btc-fil-garde');
+        }
+        filRacine = chatRoot;
+        chatRoot.classList.add('btc-fil-racine');
     };
 
     const surSurvolFil = (e) => {
@@ -3295,6 +3479,7 @@
         surSortieFil();
     });
     crochets.reglages.push(() => { if (!CONFIG.fil.enabled) surSortieFil(); });
+    crochets.chaine.push(() => surSortieFil());
 
     // =========================================================================
     // HISTORIQUE LONG ET RECHERCHE
@@ -3304,11 +3489,22 @@
     // repris : Twitch le rejoue à chaque visite et il serait compté plusieurs fois.
     // =========================================================================
     const NOM_BASE = 'btc-historique';
+    // Marque, dans le stockage du navigateur, qu'une base existe : la purge par âge tourne
+    // alors même historique coupé, sans créer de base chez qui ne l'a jamais activé.
+    const CLE_BASE = 'btc:historique:base';
     const PURGE_MS = 10 * 60000;
     let basePromesse = null;
     let tampon = [];
     let dernierePurge = 0;
     const etatHistorique = { disponible: typeof indexedDB !== 'undefined', erreur: '' };
+    let dernierAvertissement = 0;
+
+    /** Avertit dans la console, au plus une fois par minute : le tic tourne chaque seconde. */
+    const avertirHistorique = (quoi, e) => {
+        if (Date.now() - dernierAvertissement < 60000) return;
+        dernierAvertissement = Date.now();
+        console.warn(`[BTC] historique : ${quoi}`, e);
+    };
 
     const finTransaction = (tx) => new Promise((ok, ko) => {
         tx.oncomplete = () => ok();
@@ -3349,7 +3545,16 @@
                 s.createIndex('chaine_login_ts', ['chaine', 'login', 'ts']);
                 s.createIndex('ts', 'ts');
             };
-            r.onsuccess = () => ok(r.result);
+            r.onsuccess = () => {
+                const db = r.result;
+                ecrireStockage(CLE_BASE, '1');
+                // Le navigateur peut fermer la connexion (stockage saturé, données du site
+                // effacées) et un autre onglet demander une mise à niveau : on la lâche, la
+                // prochaine opération en ouvrira une nouvelle.
+                db.onversionchange = () => { db.close(); basePromesse = null; };
+                db.onclose = () => { basePromesse = null; };
+                ok(db);
+            };
             r.onerror = () => {
                 etatHistorique.disponible = false;
                 etatHistorique.erreur = String(r.error && r.error.message || r.error);
@@ -3368,16 +3573,87 @@
         try {
             const tx = db.transaction('messages', 'readwrite');
             const store = tx.objectStore('messages');
-            for (const e of lot) store.add(e);
+            for (const e of lot) {
+                const r = store.add(e);
+                r.onsuccess = () => { e.id = r.result; };
+            }
             await finTransaction(tx);
+            indexerNouveaux(lot);
             return lot.length;
         } catch (e) {
-            console.warn('[BTC] historique : écriture impossible', e);
+            // Connexion perdue : la suivante sera rouverte.
+            if (e && e.name === 'InvalidStateError') basePromesse = null;
+            avertirHistorique('écriture impossible', e);
             return 0;
         }
     };
 
     const plageChaine = (chaine, depuis = -Infinity, avant = Infinity) => IDBKeyRange.bound([chaine, depuis], [chaine, avant], false, true);
+
+    // ---- index de recherche
+    // Une recherche par texte doit examiner chaque message gardé, et IndexedDB les rend un
+    // par un : 277 ms pour 20 000 messages, mesuré, quel que soit le filtre (1 ms). Refaire
+    // ce parcours à chaque frappe rendait la recherche lente. On garde donc en mémoire, le
+    // temps de s'en servir, une forme légère des messages de la chaîne consultée ; seuls les
+    // résultats retenus sont relus en entier. Construit à la première recherche, tenu à jour
+    // à chaque écriture, oublié deux minutes après la dernière recherche.
+    const INDEX_OUBLI_MS = 2 * 60000;
+    let indexRecherche = null;   // { chaine, entrees: [{ id, ts, type, texteN, loginN, nomN }], complet, pret }
+    let indexOubli = null;
+
+    /** Forme légère d'un message gardé. Ceux de la v15.26.0 n'avaient pas les formes normalisées. */
+    const legere = (v) => ({
+        id: v.id, ts: v.ts, type: v.type,
+        texteN: v.texteN !== undefined ? v.texteN : sansAccents(v.texte),
+        loginN: v.loginN !== undefined ? v.loginN : sansAccents(v.login),
+        nomN: v.nomN !== undefined ? v.nomN : sansAccents(v.nom)
+    });
+
+    const oublierIndex = () => {
+        clearTimeout(indexOubli);
+        indexRecherche = null;
+    };
+
+    const indexPour = (db, chaine) => {
+        clearTimeout(indexOubli);
+        indexOubli = setTimeout(oublierIndex, INDEX_OUBLI_MS);
+        if (indexRecherche && indexRecherche.chaine === chaine) return indexRecherche.pret;
+        const idx = { chaine, entrees: [], complet: false };
+        idx.pret = (async () => {
+            try {
+                const index = db.transaction('messages').objectStore('messages').index('chaine_ts');
+                // Dans l'ordre de l'index : horodatage, puis identifiant.
+                await parcourirCurseur(index, plageChaine(chaine), 'next', (c) => { idx.entrees.push(legere(c.value)); });
+            } catch (e) {
+                // Échec de lecture : la prochaine recherche retentera, au lieu de rester bloquée.
+                if (indexRecherche === idx) oublierIndex();
+                throw e;
+            }
+            idx.complet = true;
+            return idx;
+        })();
+        indexRecherche = idx;
+        return idx.pret;
+    };
+
+    /**
+     * Messages tout juste écrits : ajoutés à l'index de leur chaîne, s'il est en mémoire.
+     * Déclaration de fonction, donc hissée : viderTampon, plus haut, l'appelle.
+     */
+    function indexerNouveaux(lot) {
+        const idx = indexRecherche;
+        if (!idx) return;
+        // Index en construction : son parcours pourrait déjà les contenir. On le refera.
+        if (!idx.complet) { oublierIndex(); return; }
+        const { entrees } = idx;
+        for (const e of lot) {
+            if (e.chaine !== idx.chaine || e.id === undefined) continue;
+            const l = legere(e);
+            let i = entrees.length;
+            while (i > 0 && (entrees[i - 1].ts > l.ts || (entrees[i - 1].ts === l.ts && entrees[i - 1].id > l.id))) i--;
+            entrees.splice(i, 0, l);
+        }
+    }
 
     const listerChaines = async () => {
         const db = await ouvrirBase();
@@ -3404,8 +3680,9 @@
         const db = await ouvrirBase();
         if (!db) return;
         const limiteAge = Date.now() - CONFIG.historique.jours * 86400000;
+        let supprimes = 0;
         let tx = db.transaction('messages', 'readwrite');
-        await parcourirCurseur(tx.objectStore('messages').index('ts'), IDBKeyRange.upperBound(limiteAge, true), 'next', (c) => { c.delete(); });
+        await parcourirCurseur(tx.objectStore('messages').index('ts'), IDBKeyRange.upperBound(limiteAge, true), 'next', (c) => { c.delete(); supprimes++; });
         await finTransaction(tx);
         for (const chaine of await listerChaines()) {
             const nb = await compterHistorique(chaine);
@@ -3415,34 +3692,47 @@
             await parcourirCurseur(tx.objectStore('messages').index('chaine_ts'), plageChaine(chaine), 'next', (c) => {
                 if (enTrop-- <= 0) return false;
                 c.delete();
+                supprimes++;
                 return true;
             });
             await finTransaction(tx);
         }
+        // L'index de recherche en mémoire n'est à refaire que si des messages sont partis.
+        if (supprimes) oublierIndex();
     };
 
     /**
      * Recherche, des plus récents aux plus anciens. `texte` ignore la casse et les accents ;
-     * `pseudo` est un début de pseudo ou de login ; `avant` (exclu) sert à paginer.
+     * `pseudo` est un début de pseudo ou de login. Pour la page suivante, `avant` et
+     * `avantId` reprennent l'horodatage et l'identifiant du dernier résultat rendu ; `avant`
+     * seul exclut tout cet horodatage.
      */
     const chercherHistorique = async ({ chaine = chaineCourante, texte = '', pseudo = '', depuis = -Infinity,
-        avant = Infinity, type = '', limite = 100 } = {}) => {
+        avant = Infinity, avantId = Infinity, type = '', limite = 100 } = {}) => {
         const db = await ouvrirBase();
         if (!db || !chaine) return { resultats: [], encore: false };
         const aiguille = sansAccents(normalizeSpaces(texte));
         const qui = sansAccents(String(pseudo).trim().replace(/^@/, ''));
-        const garder = (v) => (!type || v.type === type)
-            && (!aiguille || sansAccents(v.texte).includes(aiguille))
-            && (!qui || sansAccents(v.login).startsWith(qui) || sansAccents(v.nom).startsWith(qui));
-        const resultats = [];
+        const garder = (e) => (!type || e.type === type)
+            && (!aiguille || e.texteN.includes(aiguille))
+            && (!qui || e.loginN.startsWith(qui) || e.nomN.startsWith(qui));
+        // Page suivante : on reprend juste après le dernier résultat rendu, identifiant
+        // compris. Twitch insère par lots et tout un lot porte la même milliseconde : une
+        // borne sur l'horodatage seul perdait la fin d'un lot coupé par la page.
+        const borneId = Number.isFinite(avantId) ? avantId : -Infinity;
+        const { entrees } = await indexPour(db, chaine);
+        const ids = [];
         let encore = false;
-        const index = db.transaction('messages').objectStore('messages').index('chaine_ts');
-        await parcourirCurseur(index, plageChaine(chaine, depuis, avant), 'prev', (c) => {
-            if (!garder(c.value)) return true;
-            if (resultats.length >= limite) { encore = true; return false; }
-            resultats.push(c.value);
-            return true;
-        });
+        for (let i = entrees.length - 1; i >= 0; i--) {
+            const e = entrees[i];
+            if (e.ts > avant || (e.ts === avant && e.id >= borneId)) continue;
+            if (e.ts < depuis) break;
+            if (!garder(e)) continue;
+            if (ids.length >= limite) { encore = true; break; }
+            ids.push(e.id);
+        }
+        const store = db.transaction('messages').objectStore('messages');
+        const resultats = (await Promise.all(ids.map((id) => resultat(store.get(id))))).filter(Boolean);
         return { resultats, encore };
     };
 
@@ -3470,20 +3760,29 @@
         if (!chaine) store.clear();
         else await parcourirCurseur(store.index('chaine_ts'), plageChaine(chaine), 'next', (c) => { c.delete(); });
         await finTransaction(tx);
+        oublierIndex();
     };
+
+    /** Message tel qu'il est gardé : formes normalisées calculées une fois, à l'écriture. */
+    const enregistrement = (e) => ({ ...e,
+        texteN: sansAccents(e.texte), loginN: sansAccents(e.login), nomN: sansAccents(e.nom) });
 
     besoinsLecture.push(() => CONFIG.historique.enabled);
     crochets.entree.push((info, ts) => {
         if (!CONFIG.historique.enabled || info.type === 'systeme') return;
         const chaine = chaineCourante || cleDeChaine();
         if (!chaine) return;
-        tampon.push({ chaine, ts, type: info.type, genre: info.genre || '', login: info.login || '', nom: info.nom || '',
-            couleur: info.couleur || '', texte: info.texte || '', parent: info.parentLogin || '', mention: !!info.mentionneMoi });
+        tampon.push(enregistrement({ chaine, ts, type: info.type, login: info.login || '', nom: info.nom || '',
+            couleur: info.couleur || '', texte: info.texte || '' }));
         if (tampon.length >= 200) viderTampon();
     });
     crochets.tic.push(() => {
         if (tampon.length) viderTampon();
-        if (CONFIG.historique.enabled && Date.now() - dernierePurge > PURGE_MS) purgerHistorique();
+        // La durée de conservation vaut aussi historique coupé : ce qui a été gardé ne
+        // reste pas au-delà, dès lors qu'une base existe dans ce navigateur.
+        if ((CONFIG.historique.enabled || lireStockage(CLE_BASE)) && Date.now() - dernierePurge > PURGE_MS) {
+            purgerHistorique().catch((e) => avertirHistorique('purge impossible', e));
+        }
     });
 
     // ---- carte au survol d'un pseudo
@@ -3574,7 +3873,7 @@
             vue.append(etat, formulaire, resume, liste, plus, h('div', { class: 'pied' }, effacerChaine, toutEffacer,
                 h('p', { class: 'aide' }, 'Tout reste dans ce navigateur. Les messages déjà affichés à l\'ouverture du chat ne sont pas repris.')));
 
-            let dernierTs = Infinity;
+            let dernier = null;   // dernier résultat rendu : { ts, id }, pour la page suivante
             const lire = () => ({ chaine: chaine.value, texte: texte.value, pseudo: pseudo.value, periode: periode.value, type: type.value });
             const afficher = (resultats, ajouter) => {
                 if (!ajouter) liste.replaceChildren();
@@ -3592,10 +3891,14 @@
                 Object.assign(filtresHistorique, f);
                 const duree = (PERIODES.find(([v]) => v === f.periode) || PERIODES[0])[2];
                 const r = await chercherHistorique({ chaine: f.chaine, texte: f.texte, pseudo: f.pseudo, type: f.type,
-                    depuis: Number.isFinite(duree) ? Date.now() - duree : -Infinity, avant: suite ? dernierTs : Infinity, limite: 100 });
+                    depuis: Number.isFinite(duree) ? Date.now() - duree : -Infinity,
+                    avant: suite && dernier ? dernier.ts : Infinity, avantId: suite && dernier ? dernier.id : Infinity, limite: 100 });
                 if (jeton !== rechercheJeton) return;
                 afficher(r.resultats, suite);
-                if (r.resultats.length) dernierTs = r.resultats[r.resultats.length - 1].ts;
+                if (r.resultats.length) {
+                    const d = r.resultats[r.resultats.length - 1];
+                    dernier = { ts: d.ts, id: d.id };
+                }
                 plus.hidden = !r.encore;
                 const n = liste.children.length;
                 resume.textContent = n ? `${pluriel(n, 'résultat', 'résultats')}${r.encore ? ' (et plus)' : ''}` : 'Aucun message ne correspond.';
@@ -3606,25 +3909,12 @@
             formulaire.addEventListener('submit', (e) => { e.preventDefault(); chercher(); });
             plus.addEventListener('click', () => chercher(true));
 
-            const deuxTemps = (bouton, libelle, action) => {
-                let arme = null;
-                bouton.addEventListener('click', async () => {
-                    if (!arme) {
-                        bouton.textContent = 'Confirmer la suppression';
-                        bouton.classList.add('danger');
-                        arme = setTimeout(() => { arme = null; bouton.textContent = libelle; bouton.classList.remove('danger'); }, 4000);
-                        return;
-                    }
-                    clearTimeout(arme);
-                    arme = null;
-                    bouton.textContent = libelle;
-                    bouton.classList.remove('danger');
-                    await action();
-                    vuesPanneau.historique.montrer(vue);
-                });
+            const effacer = (quoi) => async () => {
+                await effacerHistorique(quoi());
+                vuesPanneau.historique.montrer(vue);
             };
-            deuxTemps(effacerChaine, 'Effacer cette chaîne', () => effacerHistorique(chaine.value));
-            deuxTemps(toutEffacer, 'Tout effacer', () => effacerHistorique(null));
+            confirmerEnDeuxTemps(effacerChaine, 'Confirmer la suppression', effacer(() => chaine.value));
+            confirmerEnDeuxTemps(toutEffacer, 'Confirmer la suppression', effacer(() => null));
 
             vue.btc = { etat, chaine, texte, pseudo, periode, type, chercher };
         },
@@ -3638,7 +3928,7 @@
                 const activer = h('button', { type: 'button', class: 'principal' }, 'Activer l\'historique');
                 activer.addEventListener('click', () => { changerReglage('historique.enabled', true); vuesPanneau.historique.montrer(vue); });
                 c.etat.append(h('p', {}, 'L\'historique est désactivé : rien n\'est enregistré.'), activer,
-                    h('p', { class: 'aide' }, 'Ce qui a déjà été gardé reste en place et redevient consultable à la réactivation.'));
+                    h('p', { class: 'aide' }, 'Ce qui a déjà été gardé reste en place et redevient consultable à la réactivation. Il est tout de même effacé au-delà de la durée de conservation.'));
                 return;
             }
             if (!etatHistorique.disponible) {
@@ -3715,6 +4005,9 @@
         };
     };
 
+    // La carte se ferme seule au bout d'une minute, sauf tant que la souris est dessus.
+    const ABSENCE_AFFICHAGE_MS = 60000;
+
     const fermerAbsence = () => {
         if (ui && ui.carteAbsence) { ui.carteAbsence.remove(); ui.carteAbsence = null; }
     };
@@ -3759,6 +4052,13 @@
         lignes);
         ui.couche.append(carte);
         ui.carteAbsence = carte;
+        const fermerCelleCi = () => { if (ui.carteAbsence === carte) fermerAbsence(); };
+        let minuteur = setTimeout(fermerCelleCi, ABSENCE_AFFICHAGE_MS);
+        carte.addEventListener('mouseenter', () => clearTimeout(minuteur));
+        carte.addEventListener('mouseleave', () => {
+            clearTimeout(minuteur);
+            minuteur = setTimeout(fermerCelleCi, 15000);
+        });
     };
 
     document.addEventListener('visibilitychange', () => {
@@ -3776,20 +4076,26 @@
         protege(() => afficherAbsence(resumerAbsence(a, duree)));
     });
     crochets.deconnexion.push(() => fermerAbsence());
+    crochets.chaine.push(() => fermerAbsence());
 
     // =========================================================================
     // POULS DU CHAT ET MOMENTS FORTS
-    // Les messages sont comptés par seaux de 10 s (deux heures gardées). Un seau compte
-    // comme pic quand il dépasse à la fois `sensibilite` fois la médiane des 30 seaux qui
-    // le précèdent (5 minutes) et cette médiane plus un écart minimal, avec un plancher
-    // absolu ; des pics consécutifs forment un seul moment. Il faut une minute
-    // d'historique pour juger : l'ouverture d'une session ne fait pas un pic.
+    // Les messages sont comptés par seaux de 10 s ; deux heures sont gardées pour le graphe.
+    // Un seau compte comme pic quand il dépasse à la fois `sensibilite` fois la médiane des
+    // 30 seaux qui le précèdent (5 minutes), cette médiane plus un écart minimal, un
+    // plancher absolu, et le plus haut des seaux précédents qui n'étaient pas des pics. Des
+    // pics consécutifs forment un seul moment. Il faut une minute d'historique pour juger :
+    // l'ouverture d'une session ne fait pas un pic. Chaque seau n'est jugé qu'une fois, à
+    // sa clôture, et les moments vont dans un journal de session, qui survit au graphe.
     // =========================================================================
     const SEAU_MS = 10000;
     const SEAUX_MAX = 720;
+    const MOMENTS_MAX = 200;
     const seaux = [];
-    let moments = [];
-    let seauAnalyse = 0;
+    let journal = [];        // moments de la session : { ts, fin, pic, base, emotes, textes }
+    let moments = [];        // les mêmes, prêts à afficher (vueMoment)
+    let dernierJuge = 0;     // début du dernier seau clos déjà jugé
+    let cleOptionsPouls = '';
     let debutLive = null;
     let debutLiveLuA = 0;
 
@@ -3816,18 +4122,46 @@
         if (!s) return;
         s.n++;
         for (const e of info.emotes) incrementer(s.emotes, e);
-        const t = sansAccents(info.texte).slice(0, 80);
-        if (t && (s.textes.has(t) || s.textes.size < 40)) incrementer(s.textes, t);
+        // Les variantes d'un même message (casse, accents) sont comptées ensemble ; la
+        // première forme rencontrée est celle qu'on affiche.
+        const texte = info.texte.slice(0, 80);
+        const cle = sansAccents(texte);
+        if (!cle) return;
+        const t = s.textes.get(cle);
+        if (t) t.n++;
+        else if (s.textes.size < 40) s.textes.set(cle, { n: 1, texte });
     });
 
+    const OPTIONS_POULS = { sensibilite: 2.5, minimum: 8, ecartMin: 5, fenetre: 30, historiqueMin: 6 };
+
+    /**
+     * Le seau `i` est-il un pic ? Rend la normale (médiane des seaux précédents) si oui,
+     * null sinon. `estPic(k)` dit si un seau précédent en était un : il ne compte pas dans
+     * le plus haut habituel. Sans ce dernier seuil, un petit chat qui arrive par paquets
+     * (médiane nulle) voyait chaque paquet devenir un moment fort.
+     */
+    const jugerSeau = (serie, i, estPic, { sensibilite, minimum, ecartMin, fenetre, historiqueMin }) => {
+        if (i < historiqueMin) return null;
+        const avant = [];
+        let habituel = 0;
+        for (let k = Math.max(0, i - fenetre); k < i; k++) {
+            avant.push(serie[k].n);
+            if (!estPic(k) && serie[k].n > habituel) habituel = serie[k].n;
+        }
+        const base = mediane(avant);
+        const seuil = Math.max(minimum, base * sensibilite, base + ecartMin, habituel + 1);
+        return serie[i].n >= seuil ? base : null;
+    };
+
     /** Moments forts d'une série de seaux { n } : indices de début et de fin (exclue), pic, base. */
-    const detecterMoments = (serie, { sensibilite = 2.5, minimum = 8, ecartMin = 5, fenetre = 30, historiqueMin = 6 } = {}) => {
+    const detecterMoments = (serie, options = {}) => {
+        const o = { ...OPTIONS_POULS, ...options };
         const trouves = [];
+        const pics = new Set();
         for (let i = 0; i < serie.length; i++) {
-            if (i < historiqueMin) continue;
-            const base = mediane(serie.slice(Math.max(0, i - fenetre), i).map((s) => s.n));
-            const seuil = Math.max(minimum, base * sensibilite, base + ecartMin);
-            if (serie[i].n < seuil) continue;
+            const base = jugerSeau(serie, i, (k) => pics.has(k), o);
+            if (base === null) continue;
+            pics.add(i);
             const dernier = trouves[trouves.length - 1];
             if (dernier && dernier.fin === i) {
                 dernier.fin = i + 1;
@@ -3864,49 +4198,89 @@
         return debutLive;
     };
 
+    const optionsPouls = () => ({ ...OPTIONS_POULS, sensibilite: CONFIG.pouls.sensibilite, minimum: CONFIG.pouls.minimum });
+
+    /** Ajoute un seau de pic au journal : il prolonge le dernier moment, ou en ouvre un. */
+    const ajouterAuJournal = (s, base) => {
+        let m = journal[journal.length - 1];
+        if (m && m.fin === s.debut) {
+            m.fin = s.debut + SEAU_MS;
+            m.pic = Math.max(m.pic, s.n);
+        } else {
+            m = { ts: s.debut, fin: s.debut + SEAU_MS, pic: s.n, base, emotes: new Map(), textes: new Map() };
+            journal.push(m);
+            if (journal.length > MOMENTS_MAX) journal.shift();
+        }
+        for (const [e, n] of s.emotes) incrementer(m.emotes, e, n);
+        for (const [cle, t] of s.textes) {
+            const deja = m.textes.get(cle);
+            if (deja) deja.n += t.n;
+            else m.textes.set(cle, { ...t });
+        }
+    };
+
+    const vueMoment = (m) => {
+        let texte = null;
+        for (const t of m.textes.values()) if (!texte || t.n > texte.n) texte = t;
+        return {
+            ts: m.ts,
+            fin: m.fin,
+            parMinute: m.pic * 6,
+            base: Math.round(m.base * 6),
+            emote: (premiers(m.emotes, 1)[0] || [])[0] || '',
+            texte: texte && texte.n >= 3 ? texte.texte : '',
+            depuisLive: debutLive != null && m.ts >= debutLive ? m.ts - debutLive : null
+        };
+    };
+
+    /** Juge les seaux clos qui ne l'ont pas encore été et met la liste des moments à jour. */
     const analyserPouls = () => {
-        // Le seau en cours n'est pas jugé : il n'est pas fini.
-        const clos = seaux.slice(0, -1);
-        const trouves = detecterMoments(clos, { sensibilite: CONFIG.pouls.sensibilite, minimum: CONFIG.pouls.minimum });
+        const o = optionsPouls();
+        // Le dernier seau n'est pas jugé : il n'est pas fini.
+        for (let i = 0; i < seaux.length - 1; i++) {
+            const s = seaux[i];
+            if (s.debut <= dernierJuge) continue;
+            dernierJuge = s.debut;
+            const base = jugerSeau(seaux, i, (k) => !!seaux[k].pic, o);
+            if (base === null) continue;
+            s.pic = true;
+            ajouterAuJournal(s, base);
+        }
         lireDebutLive();
-        moments = trouves.map((m) => {
-            const emotes = new Map();
-            const textes = new Map();
-            for (const s of clos.slice(m.debut, m.fin)) {
-                for (const [e, n] of s.emotes) incrementer(emotes, e, n);
-                for (const [t, n] of s.textes) incrementer(textes, t, n);
-            }
-            const texte = premiers(textes, 1)[0];
-            const ts = clos[m.debut].debut;
-            return {
-                ts,
-                fin: clos[m.fin - 1].debut + SEAU_MS,
-                parMinute: m.pic * 6,
-                base: Math.round(m.base * 6),
-                emote: (premiers(emotes, 1)[0] || [])[0] || '',
-                texte: texte && texte[1] >= 3 ? texte[0] : '',
-                depuisLive: debutLive != null && ts >= debutLive ? ts - debutLive : null
-            };
-        });
-        seauAnalyse = clos.length ? clos[clos.length - 1].debut : 0;
+        moments = journal.map(vueMoment);
+    };
+
+    /**
+     * Réglages du pouls changés : les seaux encore en mémoire sont rejugés. Les moments plus
+     * anciens que le graphe sont gardés tels quels, faute de seaux pour les rejuger.
+     */
+    const reanalyserPouls = () => {
+        const debutFenetre = seaux.length ? seaux[0].debut : Infinity;
+        journal = journal.filter((m) => m.fin <= debutFenetre);
+        for (const s of seaux) delete s.pic;
+        dernierJuge = 0;
+        analyserPouls();
     };
 
     crochets.tic.push(() => {
         if (!CONFIG.pouls.enabled || !chatRoot) return;
         // Un seau vide est ouvert chaque seconde s'il le faut : un chat muet est aussi une mesure.
         seauPour(Date.now());
-        const clos = seaux.length > 1 ? seaux[seaux.length - 2].debut : 0;
-        if (clos !== seauAnalyse) analyserPouls();
+        if (seaux.length > 1 && seaux[seaux.length - 2].debut > dernierJuge) analyserPouls();
     });
-    crochets.reglages.push(() => { if (CONFIG.pouls.enabled) analyserPouls(); });
-    let chainePouls = null;
-    crochets.connexion.push(() => {
-        // Changement de chaîne : la session de pouls repart de zéro.
-        if (chaineCourante === chainePouls) return;
-        chainePouls = chaineCourante;
+    crochets.reglages.push(() => {
+        if (!CONFIG.pouls.enabled) return;
+        const cle = JSON.stringify(optionsPouls());
+        if (cle === cleOptionsPouls) return;
+        cleOptionsPouls = cle;
+        reanalyserPouls();
+    });
+    // Changement de chaîne : la session de pouls repart de zéro.
+    crochets.chaine.push(() => {
         seaux.length = 0;
+        journal = [];
         moments = [];
-        seauAnalyse = 0;
+        dernierJuge = 0;
         debutLive = null;
         debutLiveLuA = 0;
     });
@@ -3937,8 +4311,11 @@
         const dpr = window.devicePixelRatio || 1;
         const largeur = Math.max(10, canevas.clientWidth || Number(canevas.getAttribute('width')) || 60);
         const hauteur = Math.max(10, canevas.clientHeight || Number(canevas.getAttribute('height')) || 18);
-        canevas.width = Math.round(largeur * dpr);
-        canevas.height = Math.round(hauteur * dpr);
+        // Redimensionner un canevas le réalloue : seulement si la taille a changé.
+        const w = Math.round(largeur * dpr);
+        const hh = Math.round(hauteur * dpr);
+        if (canevas.width !== w) canevas.width = w;
+        if (canevas.height !== hh) canevas.height = hh;
         const x = canevas.getContext('2d');
         if (!x) return;
         x.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -4035,7 +4412,16 @@
         p.classList.toggle('pic', pouls && enPic());
         const mini = p.querySelector('.mini');
         mini.hidden = !pouls;
-        if (pouls) dessinerPouls(mini, seaux.slice(-30), { marquer: true });
+        if (pouls) {
+            // Les seaux ne bougent qu'à l'arrivée d'un message ou d'un nouveau seau : inutile
+            // de redessiner chaque seconde la même chose.
+            const dernier = seaux[seaux.length - 1];
+            const empreinte = `${seaux.length}:${dernier ? dernier.debut : 0}:${dernier ? dernier.n : 0}:${moments.length}`;
+            if (empreinte !== ui.empreintePastille) {
+                ui.empreintePastille = empreinte;
+                dessinerPouls(mini, seaux.slice(-30), { marquer: true });
+            }
+        }
         const minute = Math.round(debit(60) * 60);
         p.querySelector('.valeur').textContent = rafale ? `Rafale · ${Math.round(debit(5))} msg/s` : `${nombreFr(minute)}/min`;
         const emote = pouls ? emoteDominante(6) : '';
@@ -4080,19 +4466,34 @@
         ancre.parentElement.insertBefore(boutonPanneau, ancre);
     };
 
+    /** Vrai si la frappe vise un champ où l'on tape du texte. */
+    const dansUnChamp = (e) => {
+        const el = e.composedPath ? e.composedPath()[0] : e.target;
+        if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
+        if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
+        return el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|range|color|file)$/i.test(el.type);
+    };
+
     window.addEventListener('keydown', (e) => {
         if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyB') {
+            // Dans un champ de saisie, la combinaison tape un caractère sur macOS
+            // (Option+Maj+B) : on la laisse passer.
+            if (dansUnChamp(e)) return;
             e.preventDefault();
             basculerPanneau();
         } else if (e.key === 'Escape' && panneauOuvert()) {
+            // Échap ferme le panneau, et seulement lui : Twitch ne doit pas le traiter aussi.
+            e.stopPropagation();
             fermerPanneau();
         }
     }, true);
 
     crochets.tic.push(() => {
         assurerBouton();
-        placerCouche();
         majPastille();
+        // Recalage de secours (déplacement sans changement de taille) ; le ResizeObserver
+        // et l'événement resize font l'essentiel.
+        if (coucheOccupee()) placerCouche();
     });
     crochets.reglages.push(() => majPastille());
 
@@ -4133,7 +4534,7 @@
             purger: purgerHistorique,
             effacer: effacerHistorique,
             // Pour le banc de test : ajoute des entrées comme si elles étaient arrivées.
-            ajouter: (entrees) => { tampon.push(...entrees); }
+            ajouter: (entrees) => { tampon.push(...entrees.map(enregistrement)); }
         },
         pouls: { seaux, moments: () => moments, detecter: detecterMoments, texte: texteMoments },
         rafale: () => rafaleActive,

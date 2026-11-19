@@ -1,5 +1,62 @@
 # Journal des versions
 
+## 15.26.1 — 19 novembre 2026
+
+Corrections issues de l'audit de la v15.26.0 ([`AUDIT-15.26.md`](AUDIT-15.26.md), suivi au §0).
+Aucune nouvelle fonction.
+
+### Corrigé
+- « Aller au message » met de nouveau le message en évidence : le contour était déclaré
+  `!important` et l'animation n'avait aucun effet. (B1)
+- Historique : « Plus anciens » ne saute plus les messages arrivés dans la même milliseconde que
+  le dernier résultat affiché. (B2)
+- Pouls : les moments forts restent dans la liste toute la session, et plus seulement deux
+  heures. (B3)
+- Pouls et cadence repartent de zéro au changement de chaîne, même quand Twitch garde le même
+  conteneur du chat. (B4)
+- Réglages : compactage, traduction, préfixe « Répond à », emotes et couleur de la citation,
+  étiquette 7TV et regroupement des gifts s'appliquent aux messages déjà affichés, dans les deux
+  sens. (B5)
+- Deux onglets ouverts ne s'écrasent plus leurs réglages : chacun reprend ceux de l'autre. (B6)
+- Mentions : « @pseudo », « @nom affiché » ou réponse à l'un de tes messages, plus le pseudo
+  nu. Un pseudo qui est un mot courant ne transforme plus chaque message en mention. (B7)
+- Pouls : le message représentatif garde ses accents et sa casse. (B8)
+- Pouls : un petit chat dont les messages arrivent par paquets ne fait plus de faux moments
+  forts. (B9)
+
+### Robustesse
+- Emotes comptées même quand 7TV ne les a pas encore dessinées. (R1)
+- Historique : connexion IndexedDB rouverte si le navigateur la ferme, erreurs de purge gérées,
+  avertissements limités à un par minute. (R2)
+- La pastille et la carte d'absence suivent la colonne du chat quand elle change de taille. (R3)
+- Alt+Maj+B laissé aux champs de saisie ; Échap ne remonte plus à Twitch quand il ferme le
+  panneau. (R4)
+- Pastille plus discrète au repos ; carte d'absence fermée seule au bout d'une minute. (R5)
+
+### Performance
+- Survoler une réponse coûte 6 à 10 ms au lieu de 117 à 134 ms sur une page de chaîne :
+  l'estompage du fil n'utilise plus `:has()`. (P1)
+- Recherche dans l'historique : 2 à 3 ms par frappe au lieu de 350 ms sur 20 000 messages,
+  grâce à un index léger en mémoire. (P2)
+- Pastille redessinée seulement quand les mesures changent. (P3)
+- CSS du fil émis seulement si la fonction est active. (P5)
+
+### Vie privée et sécurité
+- Pseudo lu dans le cookie `login` d'abord ; le profil Twitch, qui contient le jeton de session,
+  n'est plus qu'un repli. (S1)
+- La durée de conservation de l'historique s'applique aussi historique coupé. (S3)
+
+### Nettoyage
+- Code mort retiré (M1-M5), confirmation en deux temps factorisée (Q1), caractères invisibles
+  écrits en clair (Q2), commentaire déplacé (Q4), libellés du panneau précisés (Q5).
+- Panneau déclaré comme région, et non comme dialogue. (A1)
+
+### Outillage
+- Banc : 19 cas de plus, préfixés `26` (90 au total). L'option `horloge` simule des heures de
+  chat en quelques secondes, et plusieurs onglets peuvent s'ouvrir sur le même stockage. La page
+  imitée porte les variables de thème de Twitch. F7c vérifie que le repère se voit.
+- `npm run audit:reproduction` ne reproduit plus aucun des 11 défauts de l'audit.
+
 ## 15.26.0 — 19 novembre 2026
 
 Six fonctions nouvelles, toutes réglables dans le panneau. L'historique et le pouls sont
