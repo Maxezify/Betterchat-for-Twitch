@@ -28,7 +28,7 @@ l'audit précédent.
 | Positif | 1 — S5 |
 
 Le détail point par point est dans [`tests/suivi-15.26.json`](tests/suivi-15.26.json).
-`npm run audit:reproduction` ne reproduit plus aucun des 11 défauts sur la v15.26.1, et les
+`npm run audit:reproduction:15.26` ne reproduit plus aucun des 11 défauts sur la v15.26.1, et les
 reproduit tous sur la v15.26.0. La v15.26.1 a ajouté 19 cas au banc (préfixe `26`) ; sur la
 v15.26.0, 18 d'entre eux échouent. Le dernier, 26T3, couvre un manque du banc (T3), pas un
 défaut du script.

@@ -120,7 +120,9 @@ gardés.
 ## Documents
 
 - [`AUDIT.md`](AUDIT.md) : audit complet de la v15.24.0 et suivi des corrections (§0).
-- [`AUDIT-15.26.md`](AUDIT-15.26.md) : audit complet de la v15.26.0 (cœur et nouvelles fonctions) ;
-  ses constats se reproduisent avec `npm run audit:reproduction`.
+- [`AUDIT-15.26.md`](AUDIT-15.26.md) : audit complet de la v15.26.0 (cœur et nouvelles fonctions) et
+  suivi des corrections ; reproduction : `npm run audit:reproduction:15.26`.
+- [`AUDIT-15.26.2.md`](AUDIT-15.26.2.md) : audit complet de la v15.26.2 ; ses constats se
+  reproduisent avec `npm run audit:reproduction`.
 - [`CHANGELOG.md`](CHANGELOG.md) : journal des versions.
 - [`tests/suivi.json`](tests/suivi.json) : statut de chaque point de l'audit.

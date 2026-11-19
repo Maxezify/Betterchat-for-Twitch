@@ -1,0 +1,213 @@
+{
+  "audit": "15.26.2",
+  "commit": "68f31d5",
+  "date": "2026-11-19",
+  "document": "AUDIT-15.26.2.md",
+  "reproduction": "tests/reproduction-15.26.2.js",
+  "statuts": {
+    "ouvert": "constat relevé, pas encore traité",
+    "corrigé": "corrigé et couvert par le banc",
+    "positif": "point fort à conserver"
+  },
+  "items": [
+    {
+      "id": "B1",
+      "severite": "Moyen",
+      "categorie": "Bug",
+      "titre": "Alt+Maj+B sans effet dans la zone de saisie du chat (Windows, Linux)",
+      "preuve": "reproduction B1, contre-épreuve",
+      "statut": "ouvert",
+      "reproduction": "B1"
+    },
+    {
+      "id": "B2",
+      "severite": "Faible",
+      "categorie": "Bug",
+      "titre": "Échap rend le focus au bouton du panneau, pas à la saisie",
+      "preuve": "reproduction B2, contre-épreuve",
+      "statut": "ouvert",
+      "reproduction": "B2"
+    },
+    {
+      "id": "B3",
+      "severite": "Moyen",
+      "categorie": "Bug",
+      "titre": "Pouls remis à zéro au moindre passage sur une autre chaîne",
+      "preuve": "reproduction B3",
+      "statut": "ouvert",
+      "reproduction": "B3"
+    },
+    {
+      "id": "B4",
+      "severite": "Faible",
+      "categorie": "Bug",
+      "titre": "Résumé d'absence qui mélange deux chaînes",
+      "preuve": "reproduction B4",
+      "statut": "ouvert",
+      "reproduction": "B4"
+    },
+    {
+      "id": "B5",
+      "severite": "Faible",
+      "categorie": "Accessibilité",
+      "titre": "Compteur du pouls en aria-live réécrit chaque seconde",
+      "preuve": "reproduction B5, contre-épreuve",
+      "statut": "ouvert",
+      "reproduction": "B5"
+    },
+    {
+      "id": "B6",
+      "severite": "Moyen",
+      "categorie": "Ergonomie",
+      "titre": "Pastille de rafale et carte d'absence sur les bandeaux de Twitch",
+      "preuve": "reproduction B6, capture",
+      "statut": "ouvert",
+      "reproduction": "B6"
+    },
+    {
+      "id": "B7",
+      "severite": "Faible (à vérifier)",
+      "categorie": "Robustesse",
+      "titre": "Le clic sur le bouton remonte aux conteneurs de Twitch",
+      "preuve": "reproduction B7, contre-épreuve",
+      "statut": "ouvert",
+      "reproduction": "B7"
+    },
+    {
+      "id": "B8",
+      "severite": "Info",
+      "categorie": "Texte",
+      "titre": "« 1 messages sur la dernière minute »",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R1",
+      "severite": "Faible (à vérifier)",
+      "categorie": "Robustesse",
+      "titre": "La copie de l'engrenage hérite de ses attributs d'état (disabled, tabindex…)",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R2",
+      "severite": "Info",
+      "categorie": "Robustesse",
+      "titre": "Copie reconstruite à chaque changement de classes de l'engrenage",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "R3",
+      "severite": "Info",
+      "categorie": "Maintenance",
+      "titre": "Effacement de l'ancien historique lancé à chaque chargement, sans échéance",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "P1",
+      "severite": "Info",
+      "categorie": "Performance",
+      "titre": "Vue du pouls reconstruite chaque seconde même inchangée",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M1",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "Règle input[type=\"search\"] du panneau",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M2",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "Option marquer de dessinerPouls, toujours vraie",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M3",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "Global IDBKeyRange déclaré dans ESLint",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M4",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "Mise en page de la pastille et de la carte pensée pour l'ancienne pastille",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "M5",
+      "severite": "Info",
+      "categorie": "Code mort",
+      "titre": "confirmerEnDeuxTemps n'a plus qu'un usage",
+      "preuve": "grep",
+      "statut": "ouvert"
+    },
+    {
+      "id": "D1",
+      "severite": "Faible",
+      "categorie": "Documentation",
+      "titre": "README : Alt+Maj+B présenté sans réserve",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "T1",
+      "severite": "Faible",
+      "categorie": "Tests",
+      "titre": "Le cas 26R4 impose le comportement fautif de B1",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "T2",
+      "severite": "Faible",
+      "categorie": "Tests",
+      "titre": "Page imitée avec un textarea au lieu de l'éditeur de Twitch",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "T3",
+      "severite": "Faible",
+      "categorie": "Tests",
+      "titre": "Aucun cas pour B2 à B7",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "T4",
+      "severite": "Info",
+      "categorie": "Tests",
+      "titre": "N2 ne vaut que pour la maquette des boutons de Twitch",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "A1",
+      "severite": "Info",
+      "categorie": "Accessibilité",
+      "titre": "Panneau : liste des moments reconstruite sous les yeux du lecteur d'écran",
+      "preuve": "lecture",
+      "statut": "ouvert"
+    },
+    {
+      "id": "S1",
+      "severite": "Positif",
+      "categorie": "Sécurité",
+      "titre": "Aucun innerHTML, pas de jeton lu, pas de réseau",
+      "preuve": "lecture",
+      "statut": "positif"
+    }
+  ]
+}
