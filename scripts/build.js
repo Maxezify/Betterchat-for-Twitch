@@ -9,7 +9,8 @@
  * - L'en-tête ==UserScript== est recopié tel quel : le gestionnaire de scripts le lit.
  * - Commentaires JS et espaces retirés par terser, sans compression ni renommage : le code
  *   reste celui de la source, et les noms restent lisibles dans la console.
- * - Commentaires CSS et espaces retirés dans les gabarits de buildCSS / buildReplyStyles.
+ * - Commentaires CSS et espaces retirés dans les gabarits de buildCSS, buildReplyStyles et
+ *   cssInterface (styles du panneau, dans le shadow DOM).
  *   Un commentaire CSS coupé par une interpolation ${…} arrête la construction plutôt que
  *   de produire une feuille de style abîmée.
  * Le banc de test reconnaît ce fichier à sa ligne « Construit par scripts/build.js ».
@@ -25,7 +26,7 @@ const args = process.argv.slice(2);
 const opt = (nom, defaut) => { const i = args.indexOf(nom); return i >= 0 ? args[i + 1] : defaut; };
 const entree = opt('--entree', path.join(RACINE, 'BetterTwitchChat.user.js'));
 const sortie = opt('--sortie', path.join(RACINE, 'dist', 'BetterTwitchChat.user.js'));
-const FONCTIONS_CSS = new Set(['buildCSS', 'buildReplyStyles']);
+const FONCTIONS_CSS = new Set(['buildCSS', 'buildReplyStyles', 'cssInterface']);
 
 const echec = (msg) => { console.error(`✗ Construction impossible : ${msg}`); process.exit(1); };
 
@@ -54,6 +55,8 @@ const parcourir = (n, visite) => {
 parcourir(ast, (n) => {
     if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && FONCTIONS_CSS.has(n.id.name) && n.init) {
         zones.push([n.init.start, n.init.end]);
+    } else if (n.type === 'FunctionDeclaration' && n.id && FONCTIONS_CSS.has(n.id.name)) {
+        zones.push([n.start, n.end]);
     }
 });
 if (zones.length !== FONCTIONS_CSS.size) echec(`fonctions CSS attendues : ${[...FONCTIONS_CSS].join(', ')}.`);

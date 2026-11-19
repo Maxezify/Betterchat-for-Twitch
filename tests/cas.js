@@ -437,7 +437,8 @@ stat('Q1', ['Q1'], 'Commentaires remis à leur place', ({ SCRIPT }) => {
 
 stat('Q4', ['Q4'], 'CSS dédoublonné, nombres magiques nommés', ({ SCRIPT }) => {
     const icones = (SCRIPT.match(/\$\{NL\} \.btc-notice-icon \{/g) || []).length;
-    const restes = absent(SCRIPT, ['32px', "'inherit' : '14px'", 'childElementCount > 3']);
+    // Le retrait de la liste des destinataires ne doit plus être écrit en dur (26 + 6 px).
+    const restes = absent(SCRIPT, [/\.btc-gift-recipients\s*\{\s*margin:\s*3px 0 0 32px/, "'inherit' : '14px'", 'childElementCount > 3']);
     return { ok: icones === 1 && !restes.length, details: `blocs .btc-notice-icon=${icones} ; nombres en dur restants=${restes.join(', ') || 'aucun'}` };
 });
 
@@ -466,16 +467,404 @@ stat('LINT', ['Q2', 'Q3', 'M2'], 'ESLint : aucun avertissement', async ({ eslint
 });
 
 // =============================================================================
+// Fonctions de la v15.26 (F1 panneau, F3 rafale, F5 fil, F7 absence, F13 historique,
+// F14 pouls). Les cas qui dépendent des arrivées en direct lèvent d'abord la période
+// de stabilisation (2 s après la connexion, où Twitch rejoue les derniers messages).
+// =============================================================================
+const STOCKAGE = 'btc:reglages:v1';
+const recharger = async (page, SCRIPT) => {
+    await page.reload();
+    await page.addScriptTag({ content: SCRIPT });
+    await page.evaluate(() => window.__mk.frames(3));
+};
+
+dyn('F1a', ['F1'], 'Panneau : un contrôle par réglage, trois onglets', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        window.__BTC.reglages.ouvrir();
+        await window.__mk.frames(2);
+        const r = window.__mk.ui();
+        const visible = !!r && !r.querySelector('.panneau').hidden;
+        const controles = r ? r.querySelectorAll('[data-cle]').length : 0;
+        const attendu = window.__BTC.reglages.liste().length;
+        const onglets = r ? r.querySelectorAll('[role="tab"]').length : 0;
+        return { ok: visible && controles === attendu && onglets === 3,
+            details: `panneau ouvert=${visible}, contrôles=${controles}/${attendu}, onglets=${onglets}` };
+    })));
+
+dyn('F1b', ['F1'], 'Réglage changé : appliqué, enregistré seul, conservé après rechargement', ({ ouvrir, SCRIPT }) =>
+    ouvrir(async (page) => {
+        const avant = await page.evaluate(async (cle) => {
+            window.__BTC.reglages.ouvrir();
+            const sel = window.__mk.ui().querySelector('[data-cle="reply.style"]');
+            sel.value = 'card';
+            sel.dispatchEvent(new Event('change'));
+            await window.__mk.frames(2);
+            return { config: window.__BTC.config.reply.style, stocke: localStorage.getItem(cle),
+                css: document.getElementById('btc-styles').textContent.includes('linear-gradient(var(--btc-reply-block-tint)') };
+        }, STOCKAGE);
+        await recharger(page, SCRIPT);
+        const apres = await page.evaluate(() => window.__BTC.config.reply.style);
+        const ok = avant.config === 'card' && avant.stocke === '{"reply":{"style":"card"}}' && avant.css && apres === 'card';
+        return { ok, details: `appliqué=${avant.config} (CSS ${avant.css}), enregistré=${avant.stocke}, après rechargement=${apres}` };
+    }));
+
+dyn('F1c', ['F1'], 'Valeurs enregistrées invalides : ignorées ou bornées', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        const c = window.__BTC.config;
+        const ok = c.reply.style === 'rail' && c.reply.fontScale === 1.2 && c.rafale.entree === 8 && c.historique.enabled === false;
+        return { ok, details: `style=${c.reply.style}, fontScale=${c.reply.fontScale} (borné), rafale.entree=${c.rafale.entree}, historique=${c.historique.enabled}` };
+    }), { before: (cle) => localStorage.setItem(cle, JSON.stringify({ reply: { style: 'zzz', fontScale: 99 }, rafale: { entree: 'abc' }, historique: { enabled: 'oui' }, inconnu: 1 })), avecArg: STOCKAGE }));
+
+dyn('F1d', ['F1'], 'Bouton à côté des réglages du chat, Alt+Maj+B et Échap', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        await mk.sleep(1200);
+        const voisin = document.querySelector('[data-a-target="chat-settings"]').previousElementSibling;
+        const bouton = !!voisin && voisin.classList.contains('btc-bouton');
+        const ouvert = () => !!mk.ui() && !!mk.ui().querySelector('.panneau') && !mk.ui().querySelector('.panneau').hidden;
+        const touche = (o) => window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...o }));
+        if (bouton) voisin.click();
+        const parClic = ouvert();
+        touche({ key: 'B', code: 'KeyB', altKey: true, shiftKey: true });
+        const fermeParRaccourci = !ouvert();
+        touche({ key: 'B', code: 'KeyB', altKey: true, shiftKey: true });
+        const ouvertParRaccourci = ouvert();
+        touche({ key: 'Escape', code: 'Escape' });
+        const fermeParEchap = !ouvert();
+        return { ok: bouton && parClic && fermeParRaccourci && ouvertParRaccourci && fermeParEchap,
+            details: `bouton=${bouton}, clic=${parClic}, raccourci ferme/ouvre=${fermeParRaccourci}/${ouvertParRaccourci}, Échap=${fermeParEchap}` };
+    })));
+
+dyn('F1e', ['F1'], 'Rétablir les réglages : en deux temps', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async (cle) => {
+        window.__BTC.reglages.changer('reply.style', 'card');
+        window.__BTC.reglages.ouvrir();
+        const b = window.__mk.ui().querySelector('[data-action="retablir"]');
+        b.click();
+        const apresUn = window.__BTC.config.reply.style;
+        b.click();
+        const apresDeux = window.__BTC.config.reply.style;
+        const stocke = localStorage.getItem(cle);
+        return { ok: apresUn === 'card' && apresDeux === 'rail' && stocke === null,
+            details: `après un clic=${apresUn}, après confirmation=${apresDeux}, stockage=${stocke}` };
+    }, STOCKAGE)));
+
+dyn('F3a', ['F3'], 'Rafale : entrée au-dessus du seuil, badges secondaires masqués', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        window.__BTC.reglages.changer('rafale.entree', 3);
+        window.__BTC.config.rafale.fenetreS = 1;
+        const mod = mk.message({ user: 'modo', badges: ['Modérateur'] });
+        const abo = mk.message({ user: 'abo', badges: ['Abonné depuis 3 mois'] });
+        root.append(mod, abo);
+        for (let i = 0; i < 18; i++) root.appendChild(mk.message({ text: `m${i}` }));
+        await mk.sleep(1300);
+        const actif = document.documentElement.classList.contains('btc-rafale');
+        const vu = (w) => getComputedStyle(w.querySelector('.chat-badge')).display !== 'none';
+        const pastille = (mk.ui() && mk.ui().querySelector('.pastille .valeur') || {}).textContent || '';
+        return { ok: actif && vu(mod) && !vu(abo) && /Rafale/.test(pastille),
+            details: `rafale=${actif}, badge modo visible=${vu(mod)}, badge abonné visible=${vu(abo)}, pastille="${pastille}"` };
+    })));
+
+dyn('F3b', ['F3'], 'Rafale : sortie après l\'accalmie', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        window.__BTC.reglages.changer('rafale.entree', 3);
+        window.__BTC.config.rafale.fenetreS = 1;
+        for (let i = 0; i < 20; i++) root.appendChild(mk.message({ text: `m${i}` }));
+        await mk.sleep(1300);
+        const entree = window.__BTC.rafale();
+        await mk.sleep(3200);
+        const sortie = !window.__BTC.rafale() && !document.documentElement.classList.contains('btc-rafale');
+        return { ok: entree && sortie, details: `entrée=${entree}, sortie après 3 s de calme=${sortie}` };
+    })));
+
+dyn('F3c', ['F3'], 'Rafale coupée : aucun effet', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        window.__BTC.reglages.changer('rafale.enabled', false);
+        window.__BTC.config.rafale.entree = 3;
+        window.__BTC.config.rafale.fenetreS = 1;
+        for (let i = 0; i < 20; i++) root.appendChild(mk.message({ text: `m${i}` }));
+        await mk.sleep(1300);
+        const actif = document.documentElement.classList.contains('btc-rafale');
+        return { ok: !actif, details: `rafale déclenchée=${actif}` };
+    })));
+
+// Conversation de test : bob écrit, alice et carol lui répondent, dave parle d'autre chose.
+const conversation = ({ texteBob, emotesBob = [] }) => {
+    const mk = window.__mk; const root = mk.root();
+    const bob = mk.message({ user: 'bob', text: texteBob, emotes: emotesBob });
+    const cite = [texteBob, ...emotesBob].join(' ').trim();
+    const alice = mk.reply({ user: 'alice', to: 'bob', quoted: cite, text: 'oui !' });
+    const dave = mk.message({ user: 'dave', text: 'autre sujet' });
+    const carol = mk.reply({ user: 'carol', to: 'bob', quoted: cite, text: 'pareil' });
+    root.append(bob, alice, dave, carol);
+    window.__conv = { bob, alice, dave, carol };
+};
+const etatFil = () => {
+    const c = window.__conv;
+    const cl = (w) => w.querySelector('.chat-line__message').className;
+    return { bob: cl(c.bob), alice: cl(c.alice), carol: cl(c.carol), dave: cl(c.dave),
+        opaciteDave: Number(getComputedStyle(c.dave).opacity), html: document.documentElement.classList.contains('btc-fil') };
+};
+
+dyn('F5a', ['F5'], 'Fil : survol d\'une réponse, origine et autre réponse ressortent', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async (etat) => {
+        const mk = window.__mk;
+        await mk.frames(3);
+        mk.survoler(window.__conv.alice.querySelector('.text-fragment'));
+        await mk.sleep(400);
+        const e = (0, eval)(`(${etat})`)();
+        const ok = /btc-fil-parent/.test(e.bob) && /btc-fil-actif/.test(e.alice) && /btc-fil-enfant/.test(e.carol)
+            && !/btc-fil/.test(e.dave) && e.html && e.opaciteDave < 0.5;
+        return { ok, details: `bob=${/btc-fil-parent/.test(e.bob) ? 'origine' : '—'}, carol=${/btc-fil-enfant/.test(e.carol) ? 'réponse liée' : '—'}, dave estompé=${e.opaciteDave}` };
+    }, etatFil.toString()), { before: conversation, avecArg: { texteBob: 'salut tout le monde' } }));
+
+dyn('F5b', ['F5'], 'Fil : survol du message d\'origine, ses réponses ressortent', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async (etat) => {
+        const mk = window.__mk;
+        await mk.frames(3);
+        mk.survoler(window.__conv.bob.querySelector('.text-fragment'));
+        await mk.sleep(400);
+        const e = (0, eval)(`(${etat})`)();
+        const ok = /btc-fil-actif/.test(e.bob) && /btc-fil-enfant/.test(e.alice) && /btc-fil-enfant/.test(e.carol) && !/btc-fil/.test(e.dave);
+        return { ok, details: `réponses liées : alice=${/btc-fil-enfant/.test(e.alice)}, carol=${/btc-fil-enfant/.test(e.carol)}, dave=${/btc-fil/.test(e.dave)}` };
+    }, etatFil.toString()), { before: conversation, avecArg: { texteBob: 'salut tout le monde' } }));
+
+dyn('F5c', ['F5'], 'Fil : emote dans le message d\'origine, retrouvée par son nom', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async (etat) => {
+        const mk = window.__mk;
+        await mk.frames(3);
+        mk.survoler(window.__conv.alice.querySelector('.text-fragment'));
+        await mk.sleep(400);
+        const e = (0, eval)(`(${etat})`)();
+        return { ok: /btc-fil-parent/.test(e.bob), details: `origine « gg Kappa » retrouvée=${/btc-fil-parent/.test(e.bob)}` };
+    }, etatFil.toString()), { before: conversation, avecArg: { texteBob: 'gg', emotesBob: ['Kappa'] } }));
+
+dyn('F5d', ['F5'], 'Fil : la souris quitte le chat, tout redevient normal', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        await mk.frames(3);
+        mk.survoler(window.__conv.alice.querySelector('.text-fragment'));
+        await mk.sleep(400);
+        const avant = document.querySelectorAll('[class*="btc-fil-"]').length;
+        mk.root().dispatchEvent(new MouseEvent('mouseleave'));
+        await mk.frames(2);
+        const apres = document.querySelectorAll('[class*="btc-fil-"]').length;
+        const html = document.documentElement.classList.contains('btc-fil');
+        return { ok: avant > 0 && apres === 0 && !html, details: `lignes marquées avant/après=${avant}/${apres}, estompage restant=${html}` };
+    }), { before: conversation, avecArg: { texteBob: 'salut tout le monde' } }));
+
+dyn('F5e', ['F5'], 'Fil : message sans lien, rien n\'est estompé', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        await mk.frames(3);
+        mk.survoler(window.__conv.dave.querySelector('.text-fragment'));
+        await mk.sleep(400);
+        const marques = document.querySelectorAll('[class*="btc-fil-"]').length;
+        const html = document.documentElement.classList.contains('btc-fil');
+        return { ok: marques === 0 && !html, details: `lignes marquées=${marques}, estompage=${html}` };
+    }), { before: conversation, avecArg: { texteBob: 'salut tout le monde' } }));
+
+const PROFIL = (login, nom) => () => localStorage.setItem('twilight-user', JSON.stringify({ login: 'testeur', displayName: 'Testeur' }));
+
+dyn('F7a', ['F7'], 'Absence : résumé au retour (messages, gifts, abonnement, mention, emote)', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        window.__BTC.config.absence.minimumS = 0;
+        mk.masquer(true);
+        for (let i = 0; i < 5; i++) root.appendChild(mk.message({ user: i % 2 ? 'alice' : 'bob', text: 'ahah', emotes: ['KEKW'] }));
+        root.appendChild(mk.message({ user: 'carol', text: '@testeur tu as vu ça ?' }));
+        root.appendChild(mk.singleGift('xavier', 'alice'));
+        root.appendChild(mk.singleGift('xavier', 'bob'));
+        root.appendChild(mk.notice({ html: `<p>${mk.name('dan')} s'est abonné avec Prime.</p>` }));
+        await mk.sleep(500);
+        mk.masquer(false);
+        await mk.frames(2);
+        const c = mk.ui() && mk.ui().querySelector('.carte.absence');
+        if (!c) return { ok: false, details: 'aucune carte' };
+        const d = c.dataset;
+        // L'emote phare s'affiche en image : son nom est dans l'attribut alt.
+        const emote = !!c.querySelector('.emote img[alt="KEKW"]') || /KEKW/.test(c.textContent);
+        const ok = d.messages === '6' && d.gifts === '2' && d.abonnements === '1' && d.mentions === '1' && emote && /xavier/.test(c.textContent);
+        return { ok, details: `messages=${d.messages}, gifts=${d.gifts} (top : xavier), abonnements=${d.abonnements}, mentions=${d.mentions}, emote phare=${emote}` };
+    }), { before: PROFIL() }));
+
+dyn('F7b', ['F7'], 'Absence trop courte : pas de résumé', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        mk.masquer(true);
+        root.appendChild(mk.message({ text: 'un message' }));
+        await mk.sleep(300);
+        mk.masquer(false);
+        await mk.frames(2);
+        const c = mk.ui() && mk.ui().querySelector('.carte.absence');
+        return { ok: !c, details: `carte affichée après 0,3 s (minimum 60 s)=${!!c}` };
+    })));
+
+dyn('F7c', ['F7'], 'Absence : « Aller au message » ramène la mention à l\'écran', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        window.__BTC.config.absence.minimumS = 0;
+        mk.masquer(true);
+        const mention = mk.message({ user: 'carol', text: 'coucou @Testeur' });
+        root.appendChild(mention);
+        for (let i = 0; i < 40; i++) root.appendChild(mk.message({ text: `remplissage ${i}` }));
+        await mk.sleep(500);
+        mk.masquer(false);
+        await mk.frames(2);
+        const bouton = [...mk.ui().querySelectorAll('.carte.absence button.lien')].find((b) => /Aller/.test(b.textContent));
+        if (bouton) bouton.click();
+        await mk.frames(2);
+        return { ok: !!bouton && mention.classList.contains('btc-repere'), details: `bouton=${!!bouton}, message repéré=${mention.classList.contains('btc-repere')}` };
+    }), { before: PROFIL() }));
+
+const HISTORIQUE_ON = (cle) => localStorage.setItem(cle, JSON.stringify({ historique: { enabled: true } }));
+
+dyn('F13a', ['F13'], 'Historique : enregistrement et recherche (accents, pseudo)', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root(); const H = window.__BTC.historique;
+        window.__BTC.interne.terminerStabilisation();
+        root.appendChild(mk.message({ user: 'alice', text: 'Le niveau est élevé ce soir' }));
+        root.appendChild(mk.message({ user: 'bob', text: 'rien à voir' }));
+        root.appendChild(mk.message({ user: 'alice', text: 'deuxième message' }));
+        await mk.frames(4);
+        await H.vider();
+        const parTexte = await H.chercher({ texte: 'ELEVE' });
+        const parPseudo = await H.chercher({ pseudo: 'ali' });
+        const total = await H.compter('testchannel');
+        const ok = parTexte.resultats.length === 1 && parTexte.resultats[0].login === 'alice' && parPseudo.resultats.length === 2 && total === 3;
+        return { ok, details: `« ELEVE »=${parTexte.resultats.length} résultat, « ali »=${parPseudo.resultats.length}, gardés=${total}` };
+    }), { before: HISTORIQUE_ON, avecArg: STOCKAGE }));
+
+dyn('F13b', ['F13'], 'Historique : conservé après rechargement de la page', ({ ouvrir, SCRIPT }) =>
+    ouvrir(async (page) => {
+        await page.evaluate(async () => {
+            const mk = window.__mk;
+            window.__BTC.interne.terminerStabilisation();
+            mk.root().appendChild(mk.message({ user: 'alice', text: 'message à retrouver demain' }));
+            await mk.frames(4);
+            await window.__BTC.historique.vider();
+        });
+        await recharger(page, SCRIPT);
+        const n = await page.evaluate(async () => (await window.__BTC.historique.chercher({ texte: 'retrouver' })).resultats.length);
+        return { ok: n === 1, details: `retrouvé après rechargement=${n}` };
+    }, { before: HISTORIQUE_ON, avecArg: STOCKAGE }));
+
+dyn('F13c', ['F13'], 'Historique : purge par volume et par âge', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const H = window.__BTC.historique;
+        window.__BTC.config.historique.maxParChaine = 50;
+        const maintenant = Date.now();
+        const entree = (i, ts) => ({ chaine: 'testchannel', ts, type: 'message', genre: '', login: 'alice', nom: 'alice', couleur: '', texte: `n°${i}`, parent: '', mention: false });
+        H.ajouter(Array.from({ length: 5 }, (_, i) => entree(`vieux ${i}`, maintenant - 30 * 86400000 + i)));
+        H.ajouter(Array.from({ length: 80 }, (_, i) => entree(i, maintenant - 80000 + i * 1000)));
+        await H.vider();
+        const avant = await H.compter('testchannel');
+        await H.purger();
+        const apres = await H.compter('testchannel');
+        const vieux = (await H.chercher({ texte: 'vieux' })).resultats.length;
+        const dernier = (await H.chercher({ limite: 1 })).resultats[0];
+        return { ok: avant === 85 && apres === 50 && vieux === 0 && dernier.texte === 'n°79',
+            details: `avant=${avant}, après=${apres} (plafond 50), anciens de 30 jours restants=${vieux}, plus récent gardé=${dernier && dernier.texte}` };
+    }), { before: HISTORIQUE_ON, avecArg: STOCKAGE }));
+
+dyn('F13d', ['F13'], 'Historique coupé par défaut : rien n\'est enregistré', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        window.__BTC.interne.terminerStabilisation();
+        mk.root().appendChild(mk.message({ text: 'pas gardé' }));
+        await mk.sleep(1200);
+        await window.__BTC.historique.vider();
+        const n = await window.__BTC.historique.compter('testchannel');
+        return { ok: window.__BTC.config.historique.enabled === false && n === 0, details: `activé=${window.__BTC.config.historique.enabled}, gardés=${n}` };
+    })));
+
+dyn('F13e', ['F13'], 'Historique : derniers messages au survol d\'un pseudo', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        window.__BTC.config.historique.survolMs = 200;
+        root.appendChild(mk.message({ user: 'alice', text: 'premier message' }));
+        const w = mk.message({ user: 'alice', text: 'second message' });
+        root.appendChild(w);
+        await mk.frames(4);
+        await window.__BTC.historique.vider();
+        mk.survoler(w.querySelector('.chat-author__display-name'));
+        await mk.sleep(600);
+        const c = mk.ui() && mk.ui().querySelector('.carte.survol');
+        const ok = !!c && !c.hidden && c.dataset.total === '2' && /second message/.test(c.textContent);
+        return { ok, details: `carte=${!!c && !c.hidden}, messages comptés=${c && c.dataset.total}` };
+    }), { before: HISTORIQUE_ON, avecArg: STOCKAGE }));
+
+dyn('F14a', ['F14'], 'Pouls : détection des moments forts (série synthétique)', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        const detecter = window.__BTC.pouls.detecter;
+        const serie = (valeurs) => valeurs.map((n) => ({ n }));
+        const pic = detecter(serie([...Array(30).fill(4), 40, 45, ...Array(10).fill(4)]));
+        const plat = detecter(serie(Array(60).fill(20)));
+        const tropTot = detecter(serie([4, 4, 4, 60, 4, 4]));
+        const ok = pic.length === 1 && pic[0].debut === 30 && pic[0].fin === 32 && pic[0].pic === 45 && plat.length === 0 && tropTot.length === 0;
+        return { ok, details: `pic=${JSON.stringify(pic.map((m) => [m.debut, m.fin, m.pic]))}, série plate=${plat.length}, sans historique=${tropTot.length}` };
+    })));
+
+dyn('F14b', ['F14'], 'Pouls : mesure en direct et pastille', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        window.__BTC.reglages.changer('pouls.enabled', true);
+        for (let i = 0; i < 12; i++) root.appendChild(mk.message({ text: `pog ${i}`, emotes: ['PogU'] }));
+        await mk.sleep(1300);
+        const comptes = window.__BTC.pouls.seaux.reduce((t, s) => t + s.n, 0);
+        const p = mk.ui() && mk.ui().querySelector('.pastille');
+        const texte = p ? p.textContent : '';
+        const ok = comptes === 12 && !!p && !p.hidden && /\/min/.test(texte) && /PogU/.test(texte);
+        return { ok, details: `messages comptés=${comptes}, pastille="${texte}"` };
+    })));
+
+dyn('F14c', ['F14'], 'Pouls : liste copiable des moments, heure depuis le début du live', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const B = window.__BTC;
+        const maintenant = Date.now();
+        const debut = Math.floor(maintenant / 10000) * 10000 - 40 * 10000;
+        for (let i = 0; i < 40; i++) {
+            const n = i === 34 ? 50 : 3;
+            B.pouls.seaux.push({ debut: debut + i * 10000, n, emotes: new Map([['KEKW', n]]), textes: new Map([['lets go', i === 34 ? 9 : 0]]) });
+        }
+        B.reglages.changer('pouls.enabled', true);
+        const moments = B.pouls.moments();
+        const texte = B.pouls.texte();
+        const duree = B.interne.lireDuree('1:23:45') === 5025000 && B.interne.lireDuree('23:45') === 1425000;
+        const ok = moments.length === 1 && moments[0].parMinute === 300 && /\+\d+:\d{2}:\d{2}/.test(texte) && /KEKW/.test(texte) && /lets go/.test(texte) && duree;
+        return { ok, details: `moments=${moments.length}, ligne="${texte.split('\n')[1] || ''}", lecture des durées=${duree}` };
+    }), { page: { dureeLive: '2:00:00' } }));
+
+// =============================================================================
 // Version optimisée (scripts/build.js)
 // =============================================================================
 dyn('BUILD', ['Livraison'], 'Version optimisée : même feuille de style que la source', async ({ ouvrir, SOURCE }) => {
     if (!SOURCE) return { ok: null, details: 'source commentée introuvable (--source)' };
     // Espaces normalisés hors des chaînes entre guillemets : Chrome garde tels quels ceux
     // d'une valeur contenant var(), sans effet sur le rendu ; dans une chaîne, ils comptent.
-    const regles = (page) => page.evaluate(() => [...document.getElementById('btc-styles').sheet.cssRules].map((r) => r.cssText
-        .split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/)
-        .map((morceau, i) => (i % 2 ? morceau : morceau.replace(/\s+/g, ' ')))
-        .join('')));
+    const regles = (page) => page.evaluate(() => {
+        const normaliser = (feuille) => [...feuille.cssRules].map((r) => r.cssText
+            .split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/)
+            .map((morceau, i) => (i % 2 ? morceau : morceau.replace(/\s+/g, ' ')))
+            .join(''));
+        // Feuille du chat, puis celle du panneau (shadow DOM) une fois ouvert.
+        const chat = normaliser(document.getElementById('btc-styles').sheet);
+        if (window.__BTC.reglages) window.__BTC.reglages.ouvrir();
+        const hote = document.getElementById('btc-ui');
+        const panneau = hote ? normaliser(hote.shadowRoot.querySelector('style').sheet) : [];
+        return [...chat, '— panneau —', ...panneau];
+    });
     const optimisee = await ouvrir(regles);
     const source = await ouvrir(regles, { script: SOURCE });
     const ecart = optimisee.findIndex((r, i) => r !== source[i]);

@@ -77,7 +77,7 @@ const eslint = async () => {
     const navigateur = await chromium.launch();
 
     /** Ouvre une page de test, y charge le script, puis appelle fn(page, journal). */
-    const ouvrir = async (fn, { before, page: optionsPage, script = SCRIPT } = {}) => {
+    const ouvrir = async (fn, { before, avecArg, page: optionsPage, script = SCRIPT } = {}) => {
         const context = await navigateur.newContext();
         const page = await context.newPage();
         const journal = { errors: [], consoleErrors: [], logs: [] };
@@ -90,7 +90,7 @@ const eslint = async () => {
         await page.route('https://www.twitch.tv/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
         await page.addInitScript(HELPERS);
         await page.goto(URL_PAGE);
-        if (before) await page.evaluate(before);
+        if (before) await page.evaluate(before, avecArg);
         await page.addScriptTag({ content: script });
         await page.evaluate(() => window.__mk.frames(3));
         try { return await fn(page, journal); } finally { await context.close(); }

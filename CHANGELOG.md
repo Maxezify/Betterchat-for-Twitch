@@ -1,5 +1,46 @@
 # Journal des versions
 
+## 15.26.0 — 19 novembre 2026
+
+Six fonctions nouvelles, toutes réglables dans le panneau. L'historique et le pouls sont
+coupés par défaut ; les autres sont actives.
+
+### Ajouté
+- **Panneau de réglages** dans le chat : bouton à côté de l'engrenage, raccourci Alt+Maj+B,
+  onglets Réglages, Historique et Pouls du chat. Chaque réglage s'applique à chaud et
+  reste enregistré dans le navigateur (seuls les écarts aux valeurs par défaut). Valeurs
+  numériques bornées et arrondies au pas ; « Rétablir » en deux temps. Interface dans un
+  shadow DOM, aux couleurs du thème de Twitch, navigable au clavier.
+- **Densité adaptative en rafale** : au-delà de 8 messages par seconde, badges secondaires
+  masqués, notices et citations sur une ligne, interligne réduit, pastille « Rafale ».
+  Deux seuils, une fenêtre double à la sortie et une durée minimale évitent le clignotement.
+- **Fil de conversation au survol** d'une réponse : message d'origine et réponses sœurs
+  encadrés, reste du chat estompé.
+- **« Pendant ton absence »** : résumé au retour sur l'onglet (messages et pic de cadence,
+  abonnements, gifts, raids, mentions avec « Aller au message », emotes phares, personnes
+  les plus actives).
+- **Historique long et recherche** (IndexedDB, local uniquement) : 7 jours et 20 000 messages
+  par chaîne au plus, purge automatique ; recherche par texte sans accents, pseudo, période
+  et type, avec pagination ; derniers messages d'une personne au survol de son pseudo ;
+  effacement d'une chaîne ou de tout l'historique.
+- **Pouls du chat et moments forts** : cadence par tranche de 10 s, pics détectés par rapport
+  à la médiane du chat, horodatés à l'heure du live, avec emote dominante et message
+  représentatif ; liste copiable ; pastille de cadence en haut du chat.
+- Console : `__BTC.reglages`, `__BTC.historique`, `__BTC.pouls`, `__BTC.rafale()` ;
+  `__BTC.check()` donne aussi le débit et l'état de la rafale.
+
+### Interne
+- Les fonctions s'inscrivent à des crochets (arrivée, entrée lue, connexion, déconnexion,
+  tic, réglages) ; une fonction qui échoue n'arrête ni les autres ni le cœur du script.
+- Une arrivée n'est comptée qu'une fois, et pas pendant les 2 s qui suivent la connexion au
+  chat, quand Twitch rejoue les derniers messages. Lecture complète d'une entrée seulement
+  si une fonction active en a besoin.
+
+### Outillage
+- Banc : 24 cas de plus (F1, F3, F5, F7, F13, F14), soit 71 ; la page de test simule
+  l'onglet masqué, le survol, les badges et la durée du live. Le cas BUILD compare aussi la
+  feuille de style de l'interface. `npm run build` retire les commentaires de cette feuille.
+
 ## 15.25.0 — 18 novembre 2026
 
 Corrections issues de l'audit (`AUDIT.md`). Aucune nouvelle fonctionnalité.
