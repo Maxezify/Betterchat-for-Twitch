@@ -371,6 +371,14 @@ Son titre visible est un `<strong>` ; le premier vrai titre du panneau est le `<
 
 **Preuve.** Cas G14 : `<div role="region">`, titre visible en `<strong>`, premier titre `<h3>`.
 
+**Ce point revient sur une conclusion de l'audit de la v15.26.** Son point A1 reprochait au
+panneau, alors en `role="dialog"`, de ne pas contenir le focus ni porter `aria-modal`, et
+proposait `role="region"` ; c'est ce que fait la version actuelle, et le cas 26A1 du banc le
+vérifie. Le guide montre que ce reproche valait pour un dialogue **modal** seulement : un
+dialogue non modal ne retient pas le focus et ne bloque pas la page, exactement comme ce
+panneau. La bonne correction de l'époque était le `<dialog>` natif non modal, pas la région.
+Le cas 26A1 sera à revoir avec G14.
+
 **Correction proposée.** Un `<dialog>` non modal, ouvert par `show()` et fermé par
 `close()`, avec un `<h2>` visible et `aria-labelledby` vers lui ; « Moments forts » passe en
 `<h3>` sous ce `<h2>`. `<dialog>` est Baseline largement disponible. Le comportement ne

@@ -165,7 +165,7 @@
       "preuve": "cas G14",
       "statut": "ouvert",
       "reproduction": "G14",
-      "note": "<dialog> non modal (show/close), <h2> visible et aria-labelledby.",
+      "note": "<dialog> non modal (show/close), <h2> visible et aria-labelledby. Revient sur A1 de l'audit 15.26 (région) : le cas 26A1 sera à revoir.",
       "tests": ""
     },
     {
