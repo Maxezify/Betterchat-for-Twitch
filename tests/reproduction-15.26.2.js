@@ -56,7 +56,9 @@ const CAS = [
         const ev = new KeyboardEvent('keydown', { key: 'B', code: 'KeyB', altKey: true, shiftKey: true, bubbles: true, cancelable: true });
         champ.querySelector('span').dispatchEvent(ev);
         const ui = window.__mk.ui();
-        const ouvert = !!ui && !!ui.querySelector('.panneau') && !ui.querySelector('.panneau').hidden;
+        const p = ui && ui.querySelector('.panneau');
+        // <dialog> depuis la v15.26.4 (open), élément caché par hidden avant.
+        const ouvert = !!p && (p.tagName === 'DIALOG' ? p.open : !p.hidden);
         return { reproduit: !ouvert, mesure: `panneau ouvert par Alt+Maj+B depuis la saisie du chat : ${ouvert}` };
     }, SAISIE_TWITCH.toString()))],
 

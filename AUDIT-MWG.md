@@ -15,6 +15,46 @@ la langue du guide, entre guillemets.
 
 ---
 
+## 0. Suivi des corrections — v15.26.4 (branche `dev`)
+
+| Statut | Points |
+|---|---|
+| Corrigé | 26 : G1-G16, G18-G25, G27, G28 |
+| Conservé | 1 : G26 (titres de section en capitales, choix de style) |
+| À vérifier | 1 : G17 (tailles en px : n'a d'effet que si la racine de Twitch suit la taille de police du navigateur, §8) |
+| Positif | 1 : P1 |
+
+Les 7 recommandations non transposées (§6) restent en l'état. Le détail est dans
+[`tests/suivi-mwg.json`](tests/suivi-mwg.json).
+
+`npm run audit:mwg` ne reproduit plus que G17 sur la v15.26.4 (1 cas sur 18), contre 17 sur la
+v15.26.3. Le banc compte 20 cas de plus (MW1 à MW23, MWM, MWC ; 114 au total) et 26A1 est revu
+pour G14. Sur la v15.26.3, ces 21 cas échouent tous.
+
+Choix faits en corrigeant :
+
+- **G1, G3.** Le thème est relevé sur la couleur de fond de Twitch (`--color-background-base`,
+  sinon le fond de `<body>`) et posé sur l'hôte de l'interface (`data-schema`). Il est relu à
+  l'ouverture du panneau, à l'affichage de la carte, et chaque seconde tant que l'un des deux est
+  visible : Twitch change de thème sans recharger la page.
+- **G2.** Le gris est écrit directement dans les règles de la citation et des notices, et non
+  plus dans une variable de `:root` : il se résout ainsi sur l'élément, là où les variables de
+  thème de Twitch sont héritées, où qu'elles soient déclarées.
+- **G9.** Au-delà de l'interface, les notices traduites par le script sont aussi marquées
+  `lang="fr"`. La marque est retirée avec la traduction, et une langue posée par Twitch n'est
+  jamais touchée.
+- **G14.** Pas de couche supérieure (`popover`) : Popover n'est que nouvellement disponible, et
+  le panneau n'en a pas besoin. Le dialogue est ouvert par `show()`, jamais par `showModal()`.
+- **G15.** L'interface est désormais installée au démarrage, pour que la région live existe
+  avant toute annonce. `ariaNotify()` est appelé sur un élément de l'interface, marqué en
+  français, plutôt que sur le document, dont la langue peut être l'anglais.
+- **G16.** Le dernier résumé se revoit depuis la section « Pendant ton absence » du panneau ; le
+  focus entre alors dans la carte, et revient au bouton à sa fermeture.
+- **G23.** Le fil de conversation, laissé « à décider », suit aussi le focus clavier : deux
+  écouteurs sur le conteneur du chat.
+
+---
+
 ## 1. En bref
 
 Le script est à jour sur le **JavaScript moderne** et sur l'essentiel de la plateforme :

@@ -397,9 +397,9 @@
       "categorie": "Accessibilité",
       "titre": "Fil réservé à la souris ; panneau dialog sans comportement de dialogue",
       "preuve": "lecture",
-      "statut": "partiel",
-      "note": "Panneau déclaré role=\"region\". Fil toujours réservé à la souris : les lignes du chat Twitch ne prennent pas le focus.",
-      "tests": "26A1"
+      "statut": "corrigé",
+      "note": "v15.26.4 : panneau en <dialog> non modal titré par un h2 (la région retenue en v15.26.1 était une erreur, voir AUDIT-MWG G14) ; le fil de conversation suit aussi le focus clavier (G23).",
+      "tests": "26A1, MW23"
     },
     {
       "id": "T1",

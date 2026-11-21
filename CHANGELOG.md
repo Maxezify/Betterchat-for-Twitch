@@ -1,5 +1,59 @@
 # Journal des versions
 
+## 15.26.4 — 21 novembre 2026
+
+Corrections issues de l'audit selon Modern Web Guidance ([`AUDIT-MWG.md`](AUDIT-MWG.md), suivi
+au §0). Aucune nouvelle fonction ; le résumé d'absence se revoit depuis le panneau.
+
+### Accessibilité
+- Carte « Pendant ton absence » :
+  - fermée au clavier, elle rend le focus là où il était, le plus souvent la saisie du chat (G6) ;
+  - elle ne se ferme plus seule tant que le focus est dedans (G7) ;
+  - son résumé est annoncé par `ariaNotify()`, ou par une région live présente dès le
+    chargement, sans le nom de ses boutons (G15) ;
+  - elle a de vrais titres, `h2` et `h3` (G20) ;
+  - « Revoir le dernier résumé », dans la section « Pendant ton absence » du panneau, la
+    réaffiche (G16).
+- Panneau :
+  - un `<dialog>` non modal titré par un `h2`, au lieu d'une région (G14 ; revient sur le point
+    A1 de l'audit de la v15.26) ;
+  - flèches, Début et Fin entre les onglets, sans réagir à Alt (G12) ;
+  - les aides sont reliées à leur champ (G11) ;
+  - après « Activer le pouls du chat », le focus passe au compteur (G8).
+- Bouton du panneau : état ouvert ou fermé (`aria-expanded`), raccourci (`aria-keyshortcuts`),
+  nom fixe, rafale en description (G10).
+- L'interface, le bouton et les notices traduites sont marqués `lang="fr"` : ils sont lus en
+  français même sur un Twitch en anglais (G9).
+- La copie des moments forts est annoncée ; un second clic relance l'attente (G21).
+- En rafale, le message joint d'une notice réapparaît aussi au focus clavier (G22). Le fil de
+  conversation suit aussi le focus clavier (G23).
+- Les listes sans puces gardent leur rôle de liste dans Safari (`role="list"`, G19).
+
+### Thème et contrastes
+- Le panneau et la carte suivent le thème de Twitch pour les contrôles natifs : flèches des
+  champs, listes ouvertes, barres de défilement (`color-scheme`, G1).
+- Texte cité et notices discrètes : gris tiré des couleurs du thème, 6:1 de contraste en thème
+  clair (3,2:1 avant), rendu inchangé en sombre (G2).
+- Alerte du panneau plus sombre en thème clair : 5,1:1 (G3).
+- Contrastes forcés (Windows) : seul l'onglet actif est souligné, et le point de rafale reste
+  visible (G4, G5).
+
+### Mouvement
+- Si le système demande de réduire les animations, le chat ne glisse plus vers le bas : il y
+  saute, comme sur Twitch (G13). Le repère de « Aller au message » n'est animé que sans cette
+  demande (G28).
+
+### Nettoyage
+- `toSorted()` et `toReversed()` (G18), `aria-controls` des onglets retiré (G25), `100dvh`
+  (G24), zone de copie redimensionnable en hauteur seulement (G27), transition de carte sans
+  effet retirée (G28).
+
+### Outillage
+- Banc : 20 cas ajoutés (MW1 à MW23, MWM, MWC), 114 au total. 26A1 vérifie désormais un
+  dialogue non modal ; 6 cas lisent l'état ouvert d'un `<dialog>` ; 26M ne cherche plus
+  `ui = { hote`, l'hôte servant désormais au thème.
+- `npm run audit:mwg` ne reproduit plus que G17 (tailles en px, à vérifier sur Twitch).
+
 ## 15.26.3 — 21 novembre 2026
 
 Corrections issues de l'audit de la v15.26.2 ([`AUDIT-15.26.2.md`](AUDIT-15.26.2.md), suivi

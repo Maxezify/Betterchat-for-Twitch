@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BetterTwitchChat (+ 7TV)
 // @namespace    https://github.com/Maxezify/BetterTwitchChat-with-7tv
-// @version      15.26.3
+// @version      15.26.4
 // @description  Réponses lisibles en entier (emotes incluses), notices sub/prime/gift compactées, regroupement des gifts multiples ; panneau de réglages, densité en rafale, fil de conversation, résumé d'absence et pouls du chat. Compatible chat Twitch natif + nouvelle extension 7TV.
 // @author       Maxezify
 // @match        https://www.twitch.tv/*
@@ -55,7 +55,7 @@
     // à jour. La valeur écrite ici ne sert que de repli et doit rester égale à @version
     // (le banc de test le vérifie).
     const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version)
-        || '15.26.3';
+        || '15.26.4';
 
     // Une seule instance par page. Deux gestionnaires de scripts, ou deux installations
     // sous des noms différents, feraient tourner deux observateurs et deux boucles de
@@ -85,8 +85,10 @@
             lineTint: 'color-mix(in srgb, currentColor 8%, transparent)',
             // Fond du bloc de citation lui-même (présentation 'card'), un cran plus discret.
             blockTint: 'color-mix(in srgb, currentColor 6%, transparent)',
-            // Couleur du texte cité : gris, plus sombre que le texte des messages.
-            color: '#8f8f9a',
+            // Couleur du texte cité : un gris tiré des couleurs du thème de Twitch, à 60 % du
+            // texte vers le fond. Un gris fixe (#8f8f9a) tombait à 3,2:1 de contraste en thème
+            // clair, sous les 4,5:1 requis ; celui-ci donne 5,6:1 en sombre et 6:1 en clair.
+            color: 'color-mix(in oklab, var(--color-text-base, #efeff1) 60%, var(--color-background-base, #18181b))',
             // Taille de la citation, relative au texte du chat.
             fontScale: 0.825,
             // Interligne de la citation. Sert aussi à caler verticalement la bulle.
@@ -511,7 +513,6 @@
         :root {
             --btc-reply-line-tint: ${r.lineTint};
             --btc-reply-block-tint: ${r.blockTint};
-            --btc-reply-color: ${r.color};
             --btc-reply-font-scale: ${r.fontScale};
             --btc-reply-emote-height: ${r.emoteHeight};
             --btc-reply-accent: ${r.accentFallback};
@@ -563,7 +564,7 @@
             height: auto !important;
             font-size: calc(1em * var(--btc-reply-font-scale)) !important;
             line-height: ${r.lineHeight} !important;
-            color: var(--btc-reply-color) !important;
+            color: ${r.color} !important;
             overflow-wrap: anywhere !important;
         }
         ${Q} .btc-reply-emote {
@@ -821,7 +822,7 @@
         ${NL},
         ${NL} p:not(${SEL.massGiftName}),
         ${NL} span:not(.chatter-name):not(.chatter-name *):not(${SEL.username}):not(${SEL.username} *) {
-            color: var(--btc-reply-color) !important;
+            color: ${r.color} !important;
         }
         /* Twitch enveloppe pseudo et badges dans un <button>, et la feuille par défaut
            du navigateur y impose 13.33px sans héritage. Tout ce qui s'exprime en em à
@@ -950,8 +951,8 @@
             overflow: hidden !important;
             text-overflow: ellipsis !important;
         }
-        .btc-rafale .btc-notice-line:not(:hover) ${SEL.nestedMessage},
-        .btc-rafale .btc-notice-line:not(:hover) ${SEL.resubCustom} {
+        .btc-rafale .btc-notice-line:not(:hover):not(:focus-within) ${SEL.nestedMessage},
+        .btc-rafale .btc-notice-line:not(:hover):not(:focus-within) ${SEL.resubCustom} {
             display: none !important;
         }` : ''}
         ${CONFIG.rafale.citations ? `
@@ -1007,21 +1008,21 @@
         }` : ''}` : ''}
 
         /* ---------- Message rejoint depuis une carte ---------- */
+        /* Par défaut un contour fixe, retiré avec la classe ; le fondu ne s'ajoute que si
+           rien ne demande de réduire les animations. Sans !important : une déclaration
+           importante passe devant une animation, et le repère restait transparent. */
         @keyframes btc-repere {
             from { outline-color: var(--btc-fil-couleur); }
             to { outline-color: transparent; }
         }
-        /* Sans !important : une déclaration importante passe devant une animation, et le
-           repère restait transparent du début à la fin. */
         .btc-repere {
-            outline: 2px solid transparent;
+            outline: 2px solid var(--btc-fil-couleur);
             outline-offset: -2px;
-            animation: btc-repere 2.4s ease-out;
         }
-        @media (prefers-reduced-motion: reduce) {
+        @media (prefers-reduced-motion: no-preference) {
             .btc-repere {
-                animation: none;
-                outline-color: var(--btc-fil-couleur) !important;
+                outline-color: transparent;
+                animation: btc-repere 2.4s ease-out;
             }
         }
 
@@ -1061,15 +1062,17 @@
         .btc-bouton.btc-bouton {
             position: relative;
         }
+        /* Dessiné par sa bordure : en contrastes forcés (Windows), un fond prend la couleur
+           du fond de page et le point disparaissait ; une bordure prend celle du texte. */
         .btc-bouton--rafale::after {
             content: "";
             position: absolute;
             top: 3px;
             right: 3px;
-            width: 8px;
-            height: 8px;
+            width: 0;
+            height: 0;
+            border: 4px solid #f5333f;
             border-radius: 50%;
-            background: #f5333f;
             box-shadow: 0 0 0 2px var(--color-background-base, #18181b);
             pointer-events: none;
         }
@@ -1108,7 +1111,26 @@
             color: var(--texte);
             font: 13px/1.45 Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif;
         }
+        /* Thème choisi dans Twitch, relevé sur la couleur de son fond (majSchema) : les
+           contrôles natifs, les listes ouvertes et les barres de défilement le suivent. Posé
+           sur les surfaces qui ont leur propre fond. */
+        .panneau, .carte { color-scheme: dark; }
+        :host([data-schema="clair"]) .panneau, :host([data-schema="clair"]) .carte { color-scheme: light; }
+        /* Le rouge d'alerte tombe à 3,9:1 sur fond blanc : plus sombre en thème clair (5,1:1). */
+        :host([data-schema="clair"]) { --alerte: #d6232f; }
         [hidden] { display: none !important; }
+        /* Région des annonces aux lecteurs d'écran : présente, vide, hors de la vue. */
+        .annonce {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            border: 0;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
         button, input, select, textarea { font: inherit; color: inherit; }
         button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
             outline: 2px solid var(--accent);
@@ -1117,14 +1139,16 @@
         .couche { position: fixed; pointer-events: none; }
         .couche > * { pointer-events: auto; }
 
-        /* Panneau */
+        /* Panneau : un <dialog> non modal. La feuille du navigateur masque un dialogue fermé ;
+           display ne se pose donc que sur le dialogue ouvert. */
         .panneau {
             position: fixed;
-            top: 64px;
-            right: 16px;
+            inset: 64px 16px auto auto;
+            margin: 0;
+            padding: 0;
             width: min(440px, calc(100vw - 32px));
             max-height: calc(100vh - 96px);
-            display: flex;
+            max-height: calc(100dvh - 96px);
             flex-direction: column;
             background: var(--fond);
             color: var(--texte);
@@ -1133,9 +1157,10 @@
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
             overflow: hidden;
         }
+        .panneau[open] { display: flex; }
         .panneau > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px 8px; }
         .titre { display: flex; align-items: baseline; gap: 8px; }
-        .titre strong { font-size: 15px; letter-spacing: 0.01em; }
+        .titre h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
         .version { color: var(--texte-2); font-size: 12px; font-variant-numeric: tabular-nums; }
         .fermer {
             border: 0;
@@ -1151,16 +1176,25 @@
         .fermer:hover { background: var(--fond-2); color: var(--texte); }
         .onglets { display: flex; gap: 4px; padding: 0 10px; border-bottom: 1px solid var(--bord); }
         .onglets button {
+            position: relative;
             border: 0;
             background: transparent;
-            padding: 8px 10px;
+            padding: 8px 10px 10px;
             cursor: pointer;
             color: var(--texte-2);
-            border-bottom: 2px solid transparent;
             margin-bottom: -1px;
             font-weight: 600;
         }
-        .onglets button[aria-selected="true"] { color: var(--texte); border-bottom-color: var(--accent); }
+        /* Trait de l'onglet actif sur un pseudo-élément, en bordure : une bordure transparente
+           sur chaque onglet devenait visible partout en contrastes forcés, et un fond ou une
+           ombre y disparaîtraient. Sa place est réservée par le remplissage du bas. */
+        .onglets button[aria-selected="true"] { color: var(--texte); }
+        .onglets button[aria-selected="true"]::after {
+            content: "";
+            position: absolute;
+            inset: auto 0 0;
+            border-bottom: 2px solid var(--accent);
+        }
         .vue { overflow: auto; padding: 12px 14px 16px; display: grid; gap: 12px; align-content: start; }
 
         /* Réglages */
@@ -1208,7 +1242,7 @@
         .moments { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
         .moments li { display: flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; }
         .moments time { font-variant-numeric: tabular-nums; color: var(--texte-2); }
-        .copie { width: 100%; box-sizing: border-box; }
+        .copie { width: 100%; box-sizing: border-box; resize: vertical; }
 
         /* Cartes */
         .carte { background: var(--fond); border: 1px solid var(--bord); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4); }
@@ -1225,18 +1259,16 @@
             gap: 6px;
         }
         .carte.absence header { display: flex; align-items: center; gap: 8px; }
+        .carte.absence h2 { margin: 0; font-size: inherit; font-weight: 700; }
         .carte.absence header .duree { color: var(--texte-2); font-variant-numeric: tabular-nums; }
         .carte.absence header .fermer { margin-left: auto; }
         .carte.absence p { margin: 0; }
-        .titre-bloc { font-weight: 700; }
+        .titre-bloc { margin: 0; font-size: inherit; font-weight: 700; }
         .mentions { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
         .mentions .texte { overflow-wrap: anywhere; }
         .emotes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
         .emote { display: inline-flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
         .emote img { height: 22px; width: auto; }
-        @media (prefers-reduced-motion: no-preference) {
-            .carte { transition: opacity 0.15s ease-out; }
-        }
         `;
     }
 
@@ -1705,6 +1737,19 @@
 
     // Textes d'origine des nœuds traduits : ils reviennent si la traduction est coupée.
     const textesOriginaux = new WeakMap();
+    // Un texte traduit est en français même sur un Twitch en anglais : un lecteur d'écran
+    // doit le lire avec une voix française. La langue posée par le script est marquée pour
+    // être retirée avec la traduction ; celle que Twitch aurait posée n'est pas touchée.
+    const marquerFrancais = (el) => {
+        if (!el || el.hasAttribute('lang')) return;
+        el.lang = 'fr';
+        el.dataset.btcLangue = '';
+    };
+    const retirerLangue = (el) => {
+        if (!el || el.dataset.btcLangue === undefined) return;
+        el.removeAttribute('lang');
+        delete el.dataset.btcLangue;
+    };
     let dejaTraduit = false;
 
     // Seul le texte de Twitch est traduit : le message joint est écrit par quelqu'un, et
@@ -1718,6 +1763,7 @@
                 if (textesOriginaux.has(node)) {
                     node.textContent = textesOriginaux.get(node);
                     textesOriginaux.delete(node);
+                    retirerLangue(node.parentElement);
                 }
                 continue;
             }
@@ -1731,6 +1777,7 @@
                 if (!textesOriginaux.has(node)) textesOriginaux.set(node, text);
                 dejaTraduit = true;
                 node.textContent = out.replace(/\s+([.,!?])/g, '$1');
+                marquerFrancais(node.parentElement);
             }
         }
     };
@@ -1741,6 +1788,7 @@
             if (span.dataset.btcOriginal !== undefined) {
                 span.textContent = span.dataset.btcOriginal;
                 delete span.dataset.btcOriginal;
+                retirerLangue(span);
             }
             return;
         }
@@ -1751,6 +1799,7 @@
             if (m) {
                 span.dataset.btcOriginal = span.textContent;
                 span.textContent = build(m);
+                marquerFrancais(span);
                 return;
             }
         }
@@ -2329,7 +2378,8 @@
     const recollerEnBas = (sc) => {
         if (!sc) return;
         // Onglet masqué : aucune image ne viendrait animer le glissement, on va droit au bas.
-        if (CONFIG.smoothScrollMs > 0 && !document.hidden) {
+        // Mouvement réduit demandé par le système : pas de glissement non plus, comme Twitch.
+        if (CONFIG.smoothScrollMs > 0 && !document.hidden && !mouvementReduit()) {
             if (sc.scrollHeight - sc.clientHeight - sc.scrollTop <= 0.5) return;
             if (!glissementActif && performance.now() - finGlissement > PAUSE_OUBLI_VITESSE_MS) {
                 vitesseContenu = 0;
@@ -2725,7 +2775,7 @@
     const sansAccents = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const mediane = (valeurs) => {
         if (!valeurs.length) return 0;
-        const v = [...valeurs].sort((a, b) => a - b);
+        const v = valeurs.toSorted((a, b) => a - b);
         const m = Math.floor(v.length / 2);
         return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
     };
@@ -2748,7 +2798,12 @@
         const ss = String(s % 60).padStart(2, '0');
         return `${hh}:${mm}:${ss}`;
     };
-    const mouvementReduit = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Requête gardée : sa propriété matches suit la préférence du système en direct.
+    const requeteMouvementReduit = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    // Déclaration de fonction, donc hissée : le recollage en bas la consulte.
+    function mouvementReduit() {
+        return !!requeteMouvementReduit && requeteMouvementReduit.matches;
+    }
 
     // Stockage du navigateur : peut être plein, bloqué ou absent (navigation privée). Une
     // lecture ou une écriture ratée ne doit jamais arrêter le script.
@@ -2805,7 +2860,7 @@
         ] },
         { section: 'Affichage', entrees: [
             nombre('messageBatchMs', 'Délai entre deux messages affichés', 0, 200, 1, 'ms', '0 : les messages arrivent par paquets, comme sur Twitch.'),
-            nombre('smoothScrollMs', 'Durée du défilement fluide', 0, 3000, 100, 'ms', '0 : saut direct en bas.'),
+            nombre('smoothScrollMs', 'Durée du défilement fluide', 0, 3000, 100, 'ms', '0 : saut direct en bas. Sans effet si le système demande de réduire les animations.'),
             bool('separators', 'Trait entre les messages'),
             bool('hideHighlightLabel', 'Retirer l\'étiquette des règles « Custom Highlights » de 7TV')
         ] },
@@ -2814,7 +2869,7 @@
             nombre('rafale.entree', 'Seuil d\'entrée', 2, 60, 1, 'msg/s'),
             nombre('rafale.sortie', 'Seuil de sortie', 1, 50, 1, 'msg/s', 'Au plus 80 % du seuil d\'entrée.'),
             bool('rafale.badges', 'Masquer les badges secondaires (modo, VIP, diffuseur et staff restent)'),
-            bool('rafale.notices', 'Notices sur une ligne, message joint au survol'),
+            bool('rafale.notices', 'Notices sur une ligne, message joint au survol ou au focus'),
             bool('rafale.citations', 'Citations sur une ligne'),
             bool('rafale.espacement', 'Lignes resserrées'),
             bool('rafale.indicateur', 'Signaler la rafale sur le bouton du panneau')
@@ -2824,7 +2879,7 @@
             bool('fil.estomper', 'Estomper le reste du chat'),
             nombre('fil.delaiMs', 'Délai avant affichage', 0, 1000, 50, 'ms')
         ] },
-        { section: 'Pendant ton absence', aide: 'Un résumé de ce qui s\'est passé quand tu reviens sur l\'onglet.', entrees: [
+        { section: 'Pendant ton absence', aide: 'Un résumé de ce qui s\'est passé quand tu reviens sur l\'onglet.', extra: 'absence', entrees: [
             bool('absence.enabled', 'Activer le résumé au retour'),
             nombre('absence.minimumS', 'Absence minimale', 10, 3600, 10, 's')
         ] },
@@ -3101,11 +3156,82 @@
         const racine = hote.attachShadow({ mode: 'open' });
         const style = document.createElement('style');
         style.textContent = cssInterface();
+        // L'interface est en français, quelle que soit la langue de Twitch : un lecteur
+        // d'écran la lit ainsi avec la bonne voix.
+        hote.lang = 'fr';
         const couche = h('div', { class: 'couche', hidden: true });
-        racine.append(style, couche);
+        // Région live unique, créée vide avec l'interface : une région qui apparaît déjà
+        // remplie est souvent passée sous silence par les lecteurs d'écran.
+        const annonce = h('div', { class: 'annonce', 'aria-live': 'polite' });
+        racine.append(style, couche, annonce);
         (document.body || document.documentElement).appendChild(hote);
-        ui = { racine, couche, panneau: null, vues: {}, controles: new Map(), carteAbsence: null };
+        ui = { hote, racine, couche, annonce, panneau: null, vues: {}, controles: new Map(), carteAbsence: null };
+        majSchema();
         return ui;
+    };
+
+    /**
+     * Thème choisi dans Twitch, « sombre » ou « clair », relevé sur la couleur de son fond.
+     * Il fixe le color-scheme de l'interface et ses couleurs propres : c'est le thème de
+     * Twitch qui compte, pas celui du système. Sans couleur lisible, le thème sombre, celui
+     * des valeurs de repli.
+     */
+    function schemaTwitch() {
+        const fond = lireCouleur(getComputedStyle(document.documentElement).getPropertyValue('--color-background-base'))
+            || lireCouleur(getComputedStyle(document.body || document.documentElement).backgroundColor);
+        if (!fond || fond[3] === 0) return 'sombre';
+        const lin = (v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * lin(fond[0]) + 0.7152 * lin(fond[1]) + 0.0722 * lin(fond[2]) > 0.2 ? 'clair' : 'sombre';
+    }
+    function majSchema() {
+        if (!ui) return;
+        const schema = schemaTwitch();
+        if (ui.hote.dataset.schema !== schema) ui.hote.dataset.schema = schema;
+    }
+
+    // Annonces aux lecteurs d'écran : ariaNotify() là où il existe, sinon la région live de
+    // l'interface. Seul du texte est annoncé, jamais le nom des boutons.
+    let derniereAnnonce = '';
+    let minuteurAnnonce = null;
+    const annoncer = (message) => {
+        const texte = normalizeSpaces(message || '');
+        if (!texte) return;
+        installerInterface();
+        if (typeof ui.annonce.ariaNotify === 'function') {
+            try { ui.annonce.ariaNotify(texte); return; } catch { /* repli sur la région live */ }
+        }
+        // VoiceOver ignore un message identique au précédent : une espace insécable, qui ne
+        // se lit pas, l'en distingue.
+        const t = texte === derniereAnnonce ? `${texte}\u00a0` : texte;
+        derniereAnnonce = t;
+        clearTimeout(minuteurAnnonce);
+        ui.annonce.textContent = '';
+        minuteurAnnonce = setTimeout(() => {
+            ui.annonce.textContent = t;
+            // Vidée ensuite : en lecture libre, une vieille annonce ne traîne pas.
+            minuteurAnnonce = setTimeout(() => { ui.annonce.textContent = ''; }, 10000);
+        }, 100);
+    };
+
+    /** Texte visible d'un élément, images comprises (par leur alt), sans ses boutons. */
+    const texteVisible = (el) => {
+        let texte = '';
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+            acceptNode: (n) => (n.nodeType === Node.ELEMENT_NODE && n.tagName === 'BUTTON' ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT)
+        });
+        let n;
+        while ((n = walker.nextNode())) {
+            if (n.nodeType === Node.TEXT_NODE) texte += n.textContent;
+            else if (n.tagName === 'IMG') texte += ` ${n.getAttribute('alt') || ''} `;
+        }
+        return normalizeSpaces(texte);
+    };
+
+    /** Élément qui a le focus, jusque dans le shadow DOM de l'interface ; null pour <body>. */
+    const elementActif = () => {
+        let a = document.activeElement;
+        while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
+        return a === document.body ? null : a;
     };
 
     /** Cale la couche sur la zone visible du chat, pour y poser la carte d'absence. */
@@ -3181,10 +3307,13 @@
 
     const ONGLETS = [['reglages', 'Réglages'], ['pouls', 'Pouls du chat']];
     const vuesPanneau = {};
+    // Compléments d'une section de réglages ({ construire(), maj(el) }), déclarés par la
+    // fonction concernée et désignés par la clé `extra` de la section.
+    const extrasReglages = {};
     let ongletCourant = 'reglages';
     let boutonPanneau = null;
 
-    const panneauOuvert = () => !!(ui && ui.panneau && !ui.panneau.hidden);
+    const panneauOuvert = () => !!(ui && ui.panneau && ui.panneau.open);
 
     const montrerOnglet = (id) => {
         if (!ui || !ui.panneau) return;
@@ -3209,7 +3338,8 @@
     let focusAvant = null;
     const fermerPanneau = () => {
         if (!panneauOuvert()) return;
-        ui.panneau.hidden = true;
+        ui.panneau.close();
+        majEtatBouton();
         const cible = focusAvant && focusAvant.isConnected ? focusAvant : boutonPanneau;
         focusAvant = null;
         if (cible && cible.isConnected) cible.focus();
@@ -3223,29 +3353,44 @@
             else champ.value = String(v);
         }
         for (const p of ui.racine.querySelectorAll('.alerte-stockage')) p.hidden = stockageReglagesOk;
+        for (const el of ui.racine.querySelectorAll('[data-extra]')) {
+            const extra = extrasReglages[el.dataset.extra];
+            if (extra) extra.maj(el);
+        }
     };
 
     vuesPanneau.reglages = {
         construire(vue) {
-            for (const s of REGLAGES) {
-                const groupe = h('fieldset', { class: 'groupe' }, h('legend', {}, s.section), s.aide ? h('p', { class: 'aide' }, s.aide) : null);
+            for (const [n, s] of REGLAGES.entries()) {
+                // Les aides sont reliées à ce qu'elles décrivent : un lecteur d'écran les lit
+                // quand le champ, ou le groupe, prend le focus.
+                const aideSection = s.aide ? `btc-s-${n}-aide` : null;
+                const groupe = h('fieldset', { class: 'groupe', 'aria-describedby': aideSection },
+                    h('legend', {}, s.section), s.aide ? h('p', { class: 'aide', id: aideSection }, s.aide) : null);
                 for (const e of s.entrees) {
                     const id = `btc-r-${e.cle.replace(/\W/g, '-')}`;
+                    const aideId = e.aide ? `${id}-aide` : null;
                     let champ;
-                    if (e.type === 'bool') champ = h('input', { type: 'checkbox', id, 'data-cle': e.cle });
-                    else if (e.type === 'choix') champ = h('select', { id, 'data-cle': e.cle }, e.options.map(([v, l]) => h('option', { value: v }, l)));
-                    else champ = h('input', { type: 'number', id, 'data-cle': e.cle, min: e.min, max: e.max, step: e.pas, inputmode: 'decimal' });
+                    if (e.type === 'bool') champ = h('input', { type: 'checkbox', id, 'data-cle': e.cle, 'aria-describedby': aideId });
+                    else if (e.type === 'choix') champ = h('select', { id, 'data-cle': e.cle, 'aria-describedby': aideId }, e.options.map(([v, l]) => h('option', { value: v }, l)));
+                    else champ = h('input', { type: 'number', id, 'data-cle': e.cle, min: e.min, max: e.max, step: e.pas, inputmode: 'decimal', 'aria-describedby': aideId });
                     champ.addEventListener('change', () => {
                         const brut = e.type === 'bool' ? champ.checked : champ.value;
                         changerReglage(e.cle, brut);
                         synchroniserReglages();
                     });
-                    const aide = e.aide ? h('small', { class: 'aide' }, e.aide) : null;
+                    const aide = e.aide ? h('small', { class: 'aide', id: aideId }, e.aide) : null;
                     groupe.append(e.type === 'bool'
                         ? h('div', { class: 'reglage bool' }, champ, h('label', { for: id }, e.libelle), aide)
                         : h('div', { class: 'reglage' }, h('label', { for: id }, e.libelle),
                             h('span', { class: 'champ' }, champ, e.unite ? h('span', { class: 'unite' }, e.unite) : null), aide));
                     ui.controles.set(e.cle, champ);
+                }
+                const extra = s.extra && extrasReglages[s.extra];
+                if (extra) {
+                    const el = extra.construire();
+                    el.dataset.extra = s.extra;
+                    groupe.append(el);
                 }
                 vue.append(groupe);
             }
@@ -3276,20 +3421,28 @@
         const nav = h('div', { class: 'onglets', role: 'tablist', 'aria-label': 'Sections' });
         for (const [id, libelle] of ONGLETS) {
             nav.append(h('button', { type: 'button', role: 'tab', id: `btc-onglet-${id}`, 'data-onglet': id,
-                'aria-controls': `btc-vue-${id}`, onclick: () => montrerOnglet(id) }, libelle));
+                onclick: () => montrerOnglet(id) }, libelle));
         }
-        // Flèches gauche/droite entre les onglets, comme le veut le motif « tablist ».
+        // Flèches, Début et Fin entre les onglets, comme le veut le motif « tablist ». Une
+        // touche de modification laisse passer la frappe : Alt+Flèche gauche est aussi
+        // « page précédente » dans le navigateur.
         nav.addEventListener('keydown', (e) => {
-            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
             const ids = ONGLETS.map(([id]) => id);
-            const i = (ids.indexOf(ongletCourant) + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length;
-            montrerOnglet(ids[i]);
-            nav.querySelector(`[data-onglet="${ids[i]}"]`).focus();
+            const i = ids.indexOf(ongletCourant);
+            const n = ids.length;
+            const cible = { ArrowRight: (i + 1) % n, ArrowLeft: (i + n - 1) % n, Home: 0, End: n - 1 }[e.key];
+            if (cible === undefined) return;
+            e.preventDefault();
+            montrerOnglet(ids[cible]);
+            nav.querySelector(`[data-onglet="${ids[cible]}"]`).focus();
         });
-        // Une région, pas un dialogue : le panneau ne bloque pas la page et ne retient pas le focus.
-        const p = h('div', { class: 'panneau', role: 'region', 'aria-label': 'Réglages de BetterTwitchChat', hidden: true },
+        // Un dialogue non modal, ouvert par show() : il a un titre, ne bloque pas la page et
+        // ne retient pas le focus. (L'audit de la v15.26 en avait fait une région, à tort :
+        // retenir le focus n'est dû que par un dialogue modal.)
+        const p = h('dialog', { class: 'panneau', 'aria-labelledby': 'btc-titre-panneau' },
             h('header', {},
-                h('div', { class: 'titre' }, h('strong', {}, 'BetterTwitchChat'), h('span', { class: 'version' }, `v${VERSION}`)),
+                h('div', { class: 'titre' }, h('h2', { id: 'btc-titre-panneau' }, 'BetterTwitchChat'), h('span', { class: 'version' }, `v${VERSION}`)),
                 h('button', { type: 'button', class: 'fermer', 'aria-label': 'Fermer', onclick: fermerPanneau }, '×')),
             nav);
         for (const [id] of ONGLETS) {
@@ -3305,8 +3458,12 @@
 
     const ouvrirPanneau = (onglet) => {
         if (!ui || !ui.panneau) construirePanneau();
-        if (ui.panneau.hidden) focusAvant = document.activeElement;
-        ui.panneau.hidden = false;
+        majSchema();
+        if (!ui.panneau.open) {
+            focusAvant = elementActif();
+            ui.panneau.show();
+        }
+        majEtatBouton();
         montrerOnglet(onglet || ongletCourant);
         const tab = ui.panneau.querySelector('[role="tab"][aria-selected="true"]');
         if (tab) tab.focus();
@@ -3436,14 +3593,24 @@
         filLigne = null;
         effacerFil();
     };
+    // Au clavier aussi : le focus qui entre dans une ligne (pseudo, badges, liens) montre son
+    // fil comme le survol, et l'efface en quittant le chat.
+    const surSortieFocusFil = (e) => {
+        if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+        surSortieFil();
+    };
 
     crochets.connexion.push((root) => {
         root.addEventListener('mouseover', surSurvolFil);
         root.addEventListener('mouseleave', surSortieFil);
+        root.addEventListener('focusin', surSurvolFil);
+        root.addEventListener('focusout', surSortieFocusFil);
     });
     crochets.deconnexion.push((root) => {
         root.removeEventListener('mouseover', surSurvolFil);
         root.removeEventListener('mouseleave', surSortieFil);
+        root.removeEventListener('focusin', surSurvolFil);
+        root.removeEventListener('focusout', surSortieFocusFil);
         surSortieFil();
     });
     crochets.reglages.push(() => { if (!CONFIG.fil.enabled) surSortieFil(); });
@@ -3516,6 +3683,8 @@
         const emotes = premiers(a.emotes, 5).map(([nom, n]) => ({ nom, n, url: (emoteIndex.get(nom) || {}).url || '' }));
         return {
             duree,
+            retour: Date.now(),
+            chaine: chaineCourante,
             messages: a.messages,
             parMinute: Math.round(a.messages / Math.max(1, (Date.now() - a.debutDecompte) / 60000)),
             chaineDepart: a.chaineDepart,
@@ -3531,18 +3700,40 @@
     // La carte se ferme seule au bout d'une minute, sauf tant que la souris est dessus.
     const ABSENCE_AFFICHAGE_MS = 60000;
 
+    // Élément qui avait le focus à l'apparition de la carte : il le retrouve si la carte se
+    // ferme pendant que le focus est dedans, sinon la saisie du chat.
+    let focusAvantCarte = null;
+
     const fermerAbsence = () => {
-        if (ui && ui.carteAbsence) { ui.carteAbsence.remove(); ui.carteAbsence = null; }
+        if (!ui || !ui.carteAbsence) return;
+        const carte = ui.carteAbsence;
+        const avaitLeFocus = carte.contains(ui.racine.activeElement);
+        carte.remove();
+        ui.carteAbsence = null;
+        if (!avaitLeFocus) return;
+        const cible = [focusAvantCarte, document.querySelector('[data-a-target="chat-input"]'), boutonPanneau]
+            .find((el) => el && el.isConnected && !carte.contains(el));
+        focusAvantCarte = null;
+        if (cible) cible.focus();
     };
 
-    const afficherAbsence = (r) => {
+    /**
+     * Affiche la carte. `revoir` : demandée depuis le panneau ; le focus y entre alors, au
+     * lieu d'une annonce (le lecteur d'écran lit ce qui prend le focus).
+     */
+    const afficherAbsence = (r, { revoir = false } = {}) => {
         installerInterface();
+        majSchema();
+        const actif = elementActif();
+        if (!(ui.carteAbsence && ui.carteAbsence.contains(actif))) focusAvantCarte = actif;
         fermerAbsence();
         placerCouche();
         const lignes = [];
+        const chaine = r.chaine || chaineCourante;
+        if (r.chaine && r.chaine !== chaineCourante) lignes.push(h('p', { class: 'aide' }, `Résumé de la chaîne ${r.chaine}.`));
         if (r.chaineDepart) {
-            lignes.push(h('p', { class: 'aide' }, `Tu es passé de ${r.chaineDepart} à ${chaineCourante} pendant ton absence : `
-                + `le résumé porte sur ${chaineCourante}.`));
+            lignes.push(h('p', { class: 'aide' }, `Tu es passé de ${r.chaineDepart} à ${chaine} pendant ton absence : `
+                + `le résumé porte sur ${chaine}.`));
         }
         lignes.push(h('p', {}, `${pluriel(r.messages, 'message', 'messages')} · ${nombreFr(r.parMinute)}/min en moyenne`
             + (r.pic ? ` · pic à ${nombreFr(r.pic)}/min` : '')));
@@ -3554,8 +3745,9 @@
         if (n.serie) evenements.push(pluriel(n.serie, 'série de visionnage', 'séries de visionnage'));
         if (evenements.length) lignes.push(h('p', {}, evenements.join(' · ')));
         if (r.mentions.length) {
-            lignes.push(h('p', { class: 'titre-bloc' }, pluriel(r.mentions.length, 'mention de toi', 'mentions de toi')));
-            lignes.push(h('ul', { class: 'mentions' }, r.mentions.slice(0, 5).map((m) => {
+            lignes.push(h('h3', { class: 'titre-bloc' }, pluriel(r.mentions.length, 'mention de toi', 'mentions de toi')));
+            // role="list" : Safari retire leur rôle aux listes sans puces mises en grille.
+            lignes.push(h('ul', { class: 'mentions', role: 'list' }, r.mentions.slice(0, 5).map((m) => {
                 const present = m.element && m.element.isConnected;
                 const aller = present
                     ? h('button', { type: 'button', class: 'lien', onclick: () => allerA(m.element) }, 'Aller au message')
@@ -3570,21 +3762,68 @@
         if (r.bavards.length) {
             lignes.push(h('p', {}, 'Les plus bavards : ', r.bavards.map(([nom, nb]) => `${nom} (${nombreFr(nb)})`).join(' · ')));
         }
-        const carte = h('div', { class: 'carte absence', role: 'status', 'aria-live': 'polite',
+        // Une région nommée par son titre. Elle n'est pas elle-même une région live : son
+        // texte passe par annoncer(), sans le nom de ses boutons.
+        const titre = h('h2', { id: 'btc-titre-absence', tabindex: '-1' }, 'Pendant ton absence');
+        const carte = h('div', { class: 'carte absence', role: 'region', 'aria-labelledby': 'btc-titre-absence',
             'data-messages': r.messages, 'data-gifts': n.gift, 'data-abonnements': n.abonnement, 'data-raids': n.raid, 'data-mentions': r.mentions.length,
             'data-chaine-depart': r.chaineDepart },
-        h('header', {}, h('strong', {}, 'Pendant ton absence'), h('span', { class: 'duree' }, dureeLisible(r.duree)),
+        h('header', {}, titre, h('span', { class: 'duree' }, dureeLisible(r.duree)),
             h('button', { type: 'button', class: 'fermer', 'aria-label': 'Fermer le résumé', onclick: fermerAbsence }, '×')),
         lignes);
         ui.couche.append(carte);
         ui.carteAbsence = carte;
+        // Fermeture seule au bout d'une minute, en pause tant que la souris est dessus ou
+        // que le focus est dedans : la carte ne disparaît pas sous qui la lit.
         const fermerCelleCi = () => { if (ui.carteAbsence === carte) fermerAbsence(); };
-        let minuteur = setTimeout(fermerCelleCi, ABSENCE_AFFICHAGE_MS);
-        carte.addEventListener('mouseenter', () => clearTimeout(minuteur));
-        carte.addEventListener('mouseleave', () => {
+        let minuteur = null;
+        let survol = false;
+        let focusDedans = false;
+        const relancer = (ms) => {
             clearTimeout(minuteur);
-            minuteur = setTimeout(fermerCelleCi, 15000);
+            minuteur = survol || focusDedans ? null : setTimeout(fermerCelleCi, ms);
+        };
+        relancer(ABSENCE_AFFICHAGE_MS);
+        carte.addEventListener('mouseenter', () => { survol = true; relancer(); });
+        carte.addEventListener('mouseleave', () => { survol = false; relancer(15000); });
+        carte.addEventListener('focusin', () => { focusDedans = true; relancer(); });
+        carte.addEventListener('focusout', (e) => {
+            if (e.relatedTarget instanceof Node && carte.contains(e.relatedTarget)) return;
+            focusDedans = false;
+            relancer(15000);
         });
+        if (revoir) {
+            titre.focus();
+            return;
+        }
+        const morceaux = [`Pendant ton absence, ${dureeLisible(r.duree)}.`];
+        for (const l of lignes) morceaux.push(l.tagName === 'UL' ? [...l.children].map(texteVisible).join(' ; ') : texteVisible(l));
+        if (carte.querySelector('.mentions button')) morceaux.push('Actions disponibles.');
+        annoncer(morceaux.join(' '));
+    };
+
+    // Le dernier résumé reste consultable depuis le panneau : la carte part au bout d'une
+    // minute, ou d'un clic, et ce qu'elle disait ne doit pas partir avec elle.
+    let dernierResume = null;
+    extrasReglages.absence = {
+        construire() {
+            const etat = h('p', { class: 'aide', id: 'btc-dernier-resume' });
+            const revoir = h('button', { type: 'button', class: 'secondaire', 'data-action': 'revoir-absence',
+                'aria-describedby': 'btc-dernier-resume' }, 'Revoir le dernier résumé');
+            revoir.addEventListener('click', () => {
+                if (dernierResume) protege(() => afficherAbsence(dernierResume, { revoir: true }));
+            });
+            return h('div', { class: 'pied' }, revoir, etat);
+        },
+        maj(el) {
+            const revoir = el.querySelector('[data-action="revoir-absence"]');
+            const etat = el.querySelector('#btc-dernier-resume');
+            revoir.hidden = !dernierResume;
+            etat.textContent = dernierResume
+                ? `Dernier retour à ${heureCourte(dernierResume.retour)}${dernierResume.chaine ? ` sur ${dernierResume.chaine}` : ''}, `
+                    + `après ${dureeLisible(dernierResume.duree)} d'absence.`
+                : 'Aucun résumé pour l\'instant.';
+        }
     };
 
     document.addEventListener('visibilitychange', () => {
@@ -3599,7 +3838,11 @@
         if (duree < CONFIG.absence.minimumS * 1000) return;
         const evenements = Object.values(a.notices).reduce((x, y) => x + y, 0);
         if (!a.messages && !evenements && !a.chaineDepart) return;
-        protege(() => afficherAbsence(resumerAbsence(a, duree)));
+        protege(() => {
+            dernierResume = resumerAbsence(a, duree);
+            synchroniserReglages();
+            afficherAbsence(dernierResume);
+        });
     });
     crochets.deconnexion.push(() => fermerAbsence());
     // Changement de chaîne pendant l'absence (raid, navigation) : le décompte repart pour la
@@ -3882,22 +4125,30 @@
             const etat = h('div', { class: 'etat' });
             // Pas d'aria-live : ce compteur change chaque seconde dès que le chat vit, un
             // lecteur d'écran l'annoncerait en boucle. Il se lit à la demande.
-            const chiffres = h('p', { class: 'chiffres' });
+            // Focalisable par script seulement : il reçoit le focus quand le bouton
+            // « Activer » disparaît sous lui.
+            const chiffres = h('p', { class: 'chiffres', tabindex: '-1' });
             const canevas = h('canvas', { class: 'graphe', height: '120', role: 'img', 'aria-label': 'Messages par minute pendant la session' });
             const legende = h('p', { class: 'aide' });
-            const liste = h('ol', { class: 'moments' });
+            const liste = h('ol', { class: 'moments', role: 'list' });
             const copier = h('button', { type: 'button', class: 'secondaire' }, 'Copier la liste');
             const copie = h('textarea', { class: 'copie', readonly: true, rows: '4', hidden: true, 'aria-label': 'Liste des moments forts' });
+            let minuteurCopie = null;
             copier.addEventListener('click', async () => {
                 const texte = texteMoments();
                 try {
                     await navigator.clipboard.writeText(texte);
                     copier.textContent = 'Copiée';
-                    setTimeout(() => { copier.textContent = 'Copier la liste'; }, 2000);
+                    annoncer('Liste des moments forts copiée.');
+                    // Un second clic relance l'attente au lieu d'en empiler une autre.
+                    clearTimeout(minuteurCopie);
+                    minuteurCopie = setTimeout(() => { copier.textContent = 'Copier la liste'; }, 2000);
                 } catch {
                     copie.value = texte;
                     copie.hidden = false;
+                    copie.focus();
                     copie.select();
+                    annoncer('Le navigateur a refusé la copie : la liste est sélectionnée dans le champ, prête à copier.');
                 }
             });
             vue.append(etat, chiffres, canevas, legende, h('h3', {}, 'Moments forts'), liste, h('div', { class: 'pied' }, copier, copie,
@@ -3910,7 +4161,13 @@
             c.etat.replaceChildren();
             if (!CONFIG.pouls.enabled) {
                 const activer = h('button', { type: 'button', class: 'principal' }, 'Activer le pouls du chat');
-                activer.addEventListener('click', () => { changerReglage('pouls.enabled', true); vuesPanneau.pouls.montrer(vue); });
+                activer.addEventListener('click', () => {
+                    changerReglage('pouls.enabled', true);
+                    vuesPanneau.pouls.montrer(vue);
+                    // Le bouton vient de disparaître : le focus passe au compteur, qui dit que
+                    // la mesure a commencé, au lieu de tomber sur la page.
+                    c.chiffres.focus();
+                });
                 c.etat.append(h('p', {}, 'Le pouls est désactivé : rien n\'est mesuré.'), activer);
             }
             // Rafraîchie chaque seconde, onglet ouvert : rien n'est réécrit qui n'a pas changé.
@@ -3930,7 +4187,7 @@
             const cleListe = `${versionJournal}:${debutLive}`;
             if (c.cleListe === cleListe) return;
             c.cleListe = cleListe;
-            c.liste.replaceChildren(...(moments.length ? [...moments].reverse().map((m) => h('li', {},
+            c.liste.replaceChildren(...(moments.length ? moments.toReversed().map((m) => h('li', {},
                 h('time', {}, etiquetteMoment(m)), h('strong', {}, `${nombreFr(m.parMinute)} msg/min`),
                 h('span', { class: 'aide' }, ` (normale ${nombreFr(m.base)})`),
                 m.emote ? h('span', { class: 'emote' }, ` · ${m.emote}`) : null,
@@ -3949,16 +4206,24 @@
     // chat, dont le haut appartient aux bandeaux de Twitch.
     // =========================================================================
     const TITRE_BOUTON = 'BetterTwitchChat (Alt+Maj+B)';
+    const NOM_BOUTON = 'Réglages de BetterTwitchChat';
+    /** Panneau ouvert ou fermé, dit par le bouton. Hissée : le panneau l'appelle. */
+    function majEtatBouton() {
+        if (boutonPanneau) boutonPanneau.setAttribute('aria-expanded', String(panneauOuvert()));
+    }
     const majIndicateurRafale = () => {
         if (!boutonPanneau) return;
         const rafale = CONFIG.rafale.enabled && CONFIG.rafale.indicateur && rafaleActive;
         boutonPanneau.classList.toggle('btc-bouton--rafale', rafale);
         const parSeconde = Math.round(debit(5));
         const titre = rafale ? `Rafale en cours · ${parSeconde} msg/s — ${TITRE_BOUTON}` : TITRE_BOUTON;
-        const etiquette = rafale ? `Réglages de BetterTwitchChat. Rafale en cours, ${parSeconde} messages par seconde.`
-            : 'Réglages de BetterTwitchChat';
+        // Le nom reste fixe ; la rafale est une description, lue après lui.
+        const description = rafale ? `Rafale en cours, ${parSeconde} messages par seconde.` : null;
         if (boutonPanneau.title !== titre) boutonPanneau.title = titre;
-        if (boutonPanneau.getAttribute('aria-label') !== etiquette) boutonPanneau.setAttribute('aria-label', etiquette);
+        if (boutonPanneau.getAttribute('aria-description') !== description) {
+            if (description) boutonPanneau.setAttribute('aria-description', description);
+            else boutonPanneau.removeAttribute('aria-description');
+        }
     };
 
     /** Trois curseurs, dessinés sur la grille de 24 des icônes de Twitch. */
@@ -4012,7 +4277,12 @@
         }
         b.classList.add('btc-bouton');
         if (b.tagName === 'BUTTON') b.type = 'button';
-        b.setAttribute('aria-label', 'Réglages de BetterTwitchChat');
+        b.setAttribute('aria-label', NOM_BOUTON);
+        // L'état du panneau et le raccourci, que l'infobulle seule ne donne ni au clavier ni
+        // au toucher. Le texte du bouton est en français, quelle que soit la langue de Twitch.
+        b.setAttribute('aria-expanded', String(panneauOuvert()));
+        b.setAttribute('aria-keyshortcuts', 'Alt+Shift+B');
+        b.lang = 'fr';
         b.title = TITRE_BOUTON;
         b.dataset.btcModele = ancre.className;
         // Le clic s'arrête au bouton : React le redistribuerait sinon aux gestionnaires que
@@ -4064,6 +4334,8 @@
     crochets.tic.push(() => {
         assurerBouton();
         majIndicateurRafale();
+        // Twitch peut changer de thème sans recharger la page.
+        if (panneauOuvert() || (ui && ui.carteAbsence)) majSchema();
         // Recalage de secours (déplacement sans changement de taille) ; le ResizeObserver
         // et l'événement resize font l'essentiel.
         if (coucheOccupee()) placerCouche();
@@ -4076,6 +4348,7 @@
     chargerReglages();
     effacerAncienHistorique();
     injectCSS();
+    installerInterface();
     watchNavigation();
     document.addEventListener('visibilitychange', surVisibilite);
     surveillerRacine();

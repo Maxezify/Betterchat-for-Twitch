@@ -483,7 +483,8 @@ dyn('F1a', ['F1'], 'Panneau : un contrôle par réglage, deux onglets', ({ ouvri
         window.__BTC.reglages.ouvrir();
         await window.__mk.frames(2);
         const r = window.__mk.ui();
-        const visible = !!r && !r.querySelector('.panneau').hidden;
+        const p = r && r.querySelector('.panneau');
+        const visible = !!p && (p.tagName === 'DIALOG' ? p.open : !p.hidden);
         const controles = r ? r.querySelectorAll('[data-cle]').length : 0;
         const attendu = window.__BTC.reglages.liste().length;
         const onglets = r ? r.querySelectorAll('[role="tab"]').length : 0;
@@ -521,7 +522,7 @@ dyn('F1d', ['F1'], 'Bouton à côté des réglages du chat, Alt+Maj+B et Échap'
         await mk.sleep(1200);
         const voisin = document.querySelector('[data-a-target="chat-settings"]').previousElementSibling;
         const bouton = !!voisin && voisin.classList.contains('btc-bouton');
-        const ouvert = () => !!mk.ui() && !!mk.ui().querySelector('.panneau') && !mk.ui().querySelector('.panneau').hidden;
+        const ouvert = () => { const p = mk.ui() && mk.ui().querySelector('.panneau'); return !!p && (p.tagName === 'DIALOG' ? p.open : !p.hidden); };
         const touche = (o) => window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...o }));
         if (bouton) voisin.click();
         const parClic = ouvert();
@@ -921,7 +922,7 @@ dyn('26R1', ['15.26 R1'], 'Emotes comptées même encore écrites en texte (7TV 
 dyn('26R4', ['15.26 R4', '15.26.2 T1'], 'Raccourcis : le caractère d\'Option+Maj+B (macOS) laissé au champ, Échap gardé pour le panneau', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(async () => {
         const mk = window.__mk;
-        const ouvert = () => !!mk.ui() && !!mk.ui().querySelector('.panneau') && !mk.ui().querySelector('.panneau').hidden;
+        const ouvert = () => { const p = mk.ui() && mk.ui().querySelector('.panneau'); return !!p && (p.tagName === 'DIALOG' ? p.open : !p.hidden); };
         const champ = document.querySelector('[data-a-target="chat-input"] [data-slate-leaf]');
         // Sous macOS, Option+Maj+B tape « ı » : le champ doit le recevoir.
         const ev = new KeyboardEvent('keydown', { key: 'ı', code: 'KeyB', altKey: true, shiftKey: true, bubbles: true, cancelable: true });
@@ -1003,11 +1004,17 @@ dyn('26S1', ['15.26 S1'], 'Identité : le cookie « login » d\'abord, le profil
         localStorage.setItem('twilight-user', JSON.stringify({ login: 'parprofil', displayName: 'ParProfil', authToken: 'jeton' }));
     } }));
 
-dyn('26A1', ['15.26 A1'], 'Panneau : une région, pas un dialogue', ({ ouvrir }) =>
+// Revu par l'audit MWG (G14) : un dialogue non modal, et non une région. La règle de l'audit
+// de la v15.26 (focus retenu, aria-modal) ne vaut que pour un dialogue modal.
+dyn('26A1', ['15.26 A1', 'MWG G14'], 'Panneau : dialogue non modal, nommé par son titre', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(() => {
         window.__BTC.reglages.ouvrir();
-        const role = window.__mk.ui().querySelector('.panneau').getAttribute('role');
-        return { ok: role === 'region', details: `role=${role}` };
+        const p = window.__mk.ui().querySelector('.panneau');
+        const id = p.getAttribute('aria-labelledby');
+        const titre = id && p.getRootNode().getElementById(id);
+        const modal = p.matches(':modal');
+        const ok = p.tagName === 'DIALOG' && p.open && !modal && !p.hasAttribute('role') && !!titre && titre.tagName === 'H2';
+        return { ok, details: `<${p.tagName.toLowerCase()}> ouvert=${!!p.open}, modal=${modal}, role=${p.getAttribute('role')}, titre ${titre ? `<${titre.tagName.toLowerCase()}> « ${titre.textContent} »` : 'aucun'}` };
     })));
 
 dyn('26T3', ['15.26 T3'], 'Panneau : couleurs du thème clair de Twitch', ({ ouvrir }) =>
@@ -1018,16 +1025,20 @@ dyn('26T3', ['15.26 T3'], 'Panneau : couleurs du thème clair de Twitch', ({ ouv
         return { ok: l > 0.8, details: `fond du panneau ${fond}, luminance ${l.toFixed(2)}` };
     }), { page: { theme: 'clair' } }));
 
+// « ui = { hote » n'est plus cherché : l'hôte est de nouveau gardé dans ui, et sert cette
+// fois (thème de l'interface, v15.26.4).
 stat('26M', ['15.26 M1', '15.26 M2', '15.26 M3', '15.26 M4', '15.26 M5', '15.26 Q2'], 'Code mort de la v15.26 retiré, aucun caractère invisible dans le code',
-    verifAbsence(['quantite', 'element: entree, notice,', 'ui = { hote', "genre: info.genre || ''", 'parent: info.parentLogin', 'mention: !!info.mentionneMoi',
+    verifAbsence(['quantite', 'element: entree, notice,', "genre: info.genre || ''", 'parent: info.parentLogin', 'mention: !!info.mentionneMoi',
         "genre: '', emotes", "emotes: [], texte: ''", /[̀-ͯ]/]));
 
 // =============================================================================
 // Audit de la v15.26.2 (AUDIT-15.26.2.md) : un cas par défaut corrigé, préfixé de 62.
 // =============================================================================
+// Le panneau est un <dialog> depuis la v15.26.4 (ouvert : open) ; avant, un élément caché par hidden.
 const panneauOuvert = () => {
     const ui = window.__mk.ui();
-    return !!ui && !!ui.querySelector('.panneau') && !ui.querySelector('.panneau').hidden;
+    const p = ui && ui.querySelector('.panneau');
+    return !!p && (p.tagName === 'DIALOG' ? p.open : !p.hidden);
 };
 
 dyn('62B1', ['15.26.2 B1'], 'Alt+Maj+B ouvre le panneau depuis la saisie du chat (Windows, Linux)', ({ ouvrir }) =>
@@ -1142,7 +1153,8 @@ dyn('62B7', ['15.26.2 B7'], 'Le clic sur le bouton du panneau s\'arrête au bout
         let recu = false;
         bouton.parentElement.parentElement.addEventListener('click', () => { recu = true; });
         bouton.click();
-        const ouvert = !window.__mk.ui().querySelector('.panneau').hidden;
+        const p = window.__mk.ui().querySelector('.panneau');
+        const ouvert = (p.tagName === 'DIALOG' ? p.open : !p.hidden);
         return { ok: !recu && ouvert, details: `clic reçu par un conteneur=${recu}, panneau ouvert=${ouvert}` };
     })));
 
@@ -1242,6 +1254,354 @@ dyn('BUILD', ['Livraison'], 'Version optimisée : même feuille de style que la 
     return { ok, details: ok ? `${optimisee.length} règles CSS identiques à la source`
         : `${optimisee.length} règles contre ${source.length} ; premier écart : ${String(optimisee[ecart] || '').slice(0, 80)}` };
 });
+
+// =============================================================================
+// Audit selon Modern Web Guidance (AUDIT-MWG.md) : un cas par écart corrigé, préfixé MW.
+// =============================================================================
+/** Affiche la carte « Pendant ton absence » : quelques messages arrivés onglet masqué. */
+const AFFICHER_ABSENCE = async () => {
+    const mk = window.__mk; const root = mk.root(); const B = window.__BTC;
+    B.interne.terminerStabilisation();
+    B.config.absence.minimumS = 0;
+    mk.masquer(true);
+    for (let i = 0; i < 4; i++) root.appendChild(mk.message({ user: 'a' + i, text: 'pendant l\'absence ' + i }));
+    await mk.sleep(400);
+    mk.masquer(false);
+    await mk.frames(2);
+    return mk.ui().querySelector('.carte.absence');
+};
+/** Rapport de contraste WCAG entre deux luminances relatives. */
+const contraste = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+dyn('MW1', ['MWG G1'], 'Thème : contrôles natifs du panneau dans le thème de Twitch (color-scheme)', async ({ ouvrir }) => {
+    const lire = (page) => page.evaluate(() => {
+        window.__BTC.reglages.ouvrir();
+        const ui = window.__mk.ui();
+        return [getComputedStyle(ui.querySelector('select')).colorScheme, getComputedStyle(ui.querySelector('.vue')).colorScheme];
+    });
+    const sombre = await ouvrir(lire);
+    const clair = await ouvrir(lire, { page: { theme: 'clair' } });
+    return { ok: sombre.every((s) => /dark/.test(s)) && clair.every((s) => /light/.test(s)),
+        details: `thème sombre : ${sombre.join(', ')} ; thème clair : ${clair.join(', ')}` };
+});
+
+dyn('MW2', ['MWG G2'], 'Contraste : texte cité lisible en thème clair comme en sombre (4,5:1)', async ({ ouvrir }) => {
+    const mesurer = (page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        mk.root().appendChild(mk.reply({ to: 'bob', quoted: 'le texte cité', text: 'réponse' }));
+        await mk.frames(4);
+        const c = getComputedStyle(document.querySelector('.btc-reply-quote')).color;
+        const fond = getComputedStyle(document.body).backgroundColor;
+        return { c: mk.luminanceSur(c, fond), f: mk.luminanceSur(fond) };
+    });
+    const s = await ouvrir(mesurer);
+    const c = await ouvrir(mesurer, { page: { theme: 'clair' } });
+    const rs = contraste(s.c, s.f); const rc = contraste(c.c, c.f);
+    return { ok: rs >= 4.5 && rc >= 4.5, details: `citation : ${rs.toFixed(2)}:1 en sombre, ${rc.toFixed(2)}:1 en clair (minimum 4,5:1)` };
+});
+
+dyn('MW3', ['MWG G3'], 'Contraste : alerte du panneau lisible en thème clair (4,5:1)', ({ ouvrir }) =>
+    ouvrir(async (page) => {
+        const m = await page.evaluate(async () => {
+            const mk = window.__mk;
+            await mk.sleep(600);
+            Storage.prototype.setItem = () => { throw new Error('plein'); };
+            window.__BTC.reglages.ouvrir();
+            const champ = mk.ui().querySelector('[data-cle="separators"]');
+            champ.checked = !champ.checked;
+            champ.dispatchEvent(new Event('change'));
+            const alerte = mk.ui().querySelector('.alerte-stockage');
+            const c = getComputedStyle(alerte).color;
+            const fond = getComputedStyle(mk.ui().querySelector('.panneau')).backgroundColor;
+            return { visible: !alerte.hidden, c: mk.luminanceSur(c, fond), f: mk.luminanceSur(fond) };
+        });
+        const r = contraste(m.c, m.f);
+        return { ok: m.visible && r >= 4.5, details: `alerte visible=${m.visible}, ${r.toFixed(2)}:1 sur le fond du panneau` };
+    }, { page: { theme: 'clair' } }));
+
+dyn('MW4', ['MWG G4', 'MWG G5'], 'Contrastes forcés : seul l\'onglet actif est souligné, le point de rafale reste visible', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const B = window.__BTC;
+        await mk.sleep(1200);
+        B.interne.terminerStabilisation();
+        B.reglages.changer('rafale.entree', 3);
+        B.config.rafale.fenetreS = 1;
+        for (let i = 0; i < 20; i++) mk.root().appendChild(mk.message({ text: `m${i}` }));
+        await mk.sleep(1300);
+        B.reglages.ouvrir('reglages');
+        const [actif, autre] = mk.ui().querySelectorAll('[role="tab"]');
+        const trait = (el) => {
+            const s = getComputedStyle(el); const p = getComputedStyle(el, '::after');
+            return (s.borderBottomStyle !== 'none' && parseFloat(s.borderBottomWidth) > 0)
+                || (p.content !== 'none' && p.borderBottomStyle !== 'none' && parseFloat(p.borderBottomWidth) > 0);
+        };
+        const bouton = document.querySelector('.btc-bouton');
+        const point = getComputedStyle(bouton, '::after');
+        const pointVisible = bouton.classList.contains('btc-bouton--rafale') && point.borderTopStyle !== 'none' && parseFloat(point.borderTopWidth) > 0;
+        return { ok: trait(actif) && !trait(autre) && pointVisible,
+            details: `trait sous l'onglet actif=${trait(actif)}, sous l'autre=${trait(autre)} ; point de rafale : bordure ${point.borderTopStyle} ${point.borderTopWidth}` };
+    }), { contexte: { forcedColors: 'active' } }));
+
+dyn('MW6', ['MWG G6'], 'Absence : fermée au clavier, la carte rend le focus à la saisie du chat', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async (src) => {
+        const saisie = document.querySelector('[data-a-target="chat-input"]');
+        saisie.focus();
+        const carte = await (0, eval)(`(${src})`)();
+        if (!carte) return { ok: false, details: 'aucune carte' };
+        const fermer = carte.querySelector('.fermer');
+        fermer.focus();
+        fermer.click();
+        const actif = document.activeElement;
+        return { ok: actif === saisie, details: `focus après fermeture : ${actif === saisie ? 'la saisie du chat' : `<${actif.tagName.toLowerCase()}>`}` };
+    }, AFFICHER_ABSENCE.toString())));
+
+dyn('MW7', ['MWG G7'], 'Absence : la carte ne se ferme pas seule tant que le focus est dedans', ({ ouvrir }) =>
+    ouvrir(async (page) => {
+        await page.clock.runFor(3000);
+        await page.evaluate(() => {
+            const mk = window.__mk; window.__BTC.config.absence.minimumS = 10;
+            mk.masquer(true);
+            for (let i = 0; i < 5; i++) mk.root().appendChild(mk.message({ text: 'pendant ' + i }));
+        });
+        await page.clock.runFor(20000);
+        await page.evaluate(() => window.__mk.masquer(false));
+        await page.clock.runFor(500);
+        const carte = () => page.evaluate(() => !!window.__mk.ui().querySelector('.carte.absence'));
+        await page.evaluate(() => window.__mk.ui().querySelector('.carte.absence .fermer').focus());
+        await page.clock.runFor(70000);
+        const focusDedans = await carte();
+        await page.evaluate(() => document.querySelector('[data-a-target="chat-input"]').focus());
+        await page.clock.runFor(16000);
+        const apres = await carte();
+        return { ok: focusDedans && !apres, details: `carte encore là 70 s plus tard, focus dedans=${focusDedans} ; 16 s après la sortie du focus=${apres}` };
+    }, { horloge: HORLOGE }));
+
+dyn('MW8', ['MWG G8'], 'Pouls : après « Activer », le focus passe au compteur', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        await window.__mk.sleep(600);
+        window.__BTC.reglages.ouvrir('pouls');
+        const ui = window.__mk.ui();
+        const activer = [...ui.querySelectorAll('[data-vue="pouls"] button')].find((b) => /Activer/.test(b.textContent));
+        activer.focus();
+        activer.click();
+        const actif = ui.activeElement;
+        return { ok: !!actif && actif.classList.contains('chiffres'), details: `focus : ${actif ? `<${actif.tagName.toLowerCase()} class="${actif.className}">` : '<body>'}` };
+    })));
+
+dyn('MW9', ['MWG G9'], 'Twitch en anglais : interface et notices traduites marquées en français', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        await mk.sleep(1200);
+        mk.root().appendChild(mk.notice({ html: `<p>${mk.name('carol')} subscribed with Prime.</p>` }));
+        await mk.frames(4);
+        window.__BTC.reglages.ouvrir();
+        const p = mk.ui().querySelector('.panneau');
+        const b = document.querySelector('.btc-bouton');
+        const notice = document.querySelector('[data-test-selector="user-notice-line"] p');
+        const traduite = !!notice && /abonn/.test(notice.textContent) && notice.matches(':lang(fr)');
+        window.__BTC.reglages.changer('translate', false);
+        const rendue = !!notice && /subscribed/.test(notice.textContent) && !notice.hasAttribute('lang');
+        return { ok: p.matches(':lang(fr)') && b.matches(':lang(fr)') && traduite && rendue,
+            details: `<html lang="${document.documentElement.lang}"> ; panneau=${p.matches(':lang(fr)')}, bouton=${b.matches(':lang(fr)')}, notice traduite en français=${traduite}, langue retirée avec la traduction=${rendue}` };
+    }), { before: () => { document.documentElement.lang = 'en'; } }));
+
+dyn('MW10', ['MWG G10'], 'Bouton du panneau : état ouvert, raccourci, nom fixe pendant une rafale', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const B = window.__BTC;
+        await mk.sleep(1200);
+        const b = document.querySelector('.btc-bouton');
+        const ferme = b.getAttribute('aria-expanded');
+        b.click();
+        const ouvert = b.getAttribute('aria-expanded');
+        B.reglages.fermer();
+        const referme = b.getAttribute('aria-expanded');
+        B.interne.terminerStabilisation();
+        B.reglages.changer('rafale.entree', 3);
+        B.config.rafale.fenetreS = 1;
+        for (let i = 0; i < 20; i++) mk.root().appendChild(mk.message({ text: `m${i}` }));
+        await mk.sleep(1300);
+        const nom = b.getAttribute('aria-label');
+        const description = b.getAttribute('aria-description') || '';
+        const ok = ferme === 'false' && ouvert === 'true' && referme === 'false' && b.getAttribute('aria-keyshortcuts') === 'Alt+Shift+B'
+            && nom === 'Réglages de BetterTwitchChat' && /Rafale en cours/.test(description);
+        return { ok, details: `aria-expanded fermé/ouvert/refermé=${ferme}/${ouvert}/${referme}, aria-keyshortcuts=${b.getAttribute('aria-keyshortcuts')}, nom en rafale « ${nom} », description « ${description} »` };
+    })));
+
+dyn('MW11', ['MWG G11'], 'Réglages : chaque aide est reliée à son champ (aria-describedby)', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        window.__BTC.reglages.ouvrir();
+        const ui = window.__mk.ui();
+        const lignes = [...ui.querySelectorAll('.reglage')].filter((r) => r.querySelector('.aide'));
+        const relies = lignes.filter((r) => {
+            const champ = r.querySelector('[data-cle]');
+            const id = champ.getAttribute('aria-describedby');
+            const cible = id && ui.getElementById(id);
+            return !!cible && cible === r.querySelector('.aide');
+        });
+        const groupes = [...ui.querySelectorAll('fieldset')].filter((f) => f.querySelector(':scope > p.aide'));
+        const groupesRelies = groupes.filter((f) => f.getAttribute('aria-describedby') === f.querySelector(':scope > p.aide').id);
+        return { ok: lignes.length > 0 && relies.length === lignes.length && groupesRelies.length === groupes.length,
+            details: `champs : ${relies.length}/${lignes.length} reliés à leur aide ; sections : ${groupesRelies.length}/${groupes.length}` };
+    })));
+
+dyn('MW12', ['MWG G12'], 'Onglets : flèches, Début et Fin, sans réagir à Alt', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        window.__BTC.reglages.ouvrir('reglages');
+        const ui = window.__mk.ui();
+        const selectionne = () => ui.querySelector('[role="tab"][aria-selected="true"]').dataset.onglet;
+        const touche = (key, opts = {}) => {
+            const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...opts });
+            ui.activeElement.dispatchEvent(ev);
+            return ev.defaultPrevented;
+        };
+        ui.querySelector('[data-onglet="reglages"]').focus();
+        touche('ArrowRight', { altKey: true });
+        const avecAlt = selectionne();
+        const bloquee = touche('ArrowRight');
+        const droite = selectionne();
+        touche('Home');
+        const debut = selectionne();
+        touche('End');
+        const fin = selectionne();
+        const ok = avecAlt === 'reglages' && bloquee && droite === 'pouls' && debut === 'reglages' && fin === 'pouls';
+        return { ok, details: `Alt+Flèche droite : ${avecAlt} ; Flèche droite : ${droite} (action par défaut bloquée=${bloquee}) ; Début : ${debut} ; Fin : ${fin}` };
+    })));
+
+dyn('MW13', ['MWG G13'], 'Mouvement réduit : le chat saute en bas sans glisser', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        for (let i = 0; i < 40; i++) root.appendChild(mk.message({ user: 'u' + i, text: 'remplissage ' + i }));
+        await mk.frames(10); await mk.sleep(1800);
+        const sc = document.querySelector('[data-a-target="chat-scroller"]');
+        for (let i = 0; i < 6; i++) root.appendChild(mk.message({ user: 'n' + i, text: 'nouveau message assez long pour prendre de la place ' + i }));
+        const ecarts = [];
+        for (let i = 0; i < 8; i++) { await mk.frames(1); ecarts.push(Math.round(sc.scrollHeight - sc.clientHeight - sc.scrollTop)); }
+        const intermediaires = ecarts.filter((d) => d > 1).length;
+        return { ok: intermediaires <= 1 && ecarts[ecarts.length - 1] <= 1,
+            details: `écart au bas, image par image : ${ecarts.join(', ')} px` };
+    }), { contexte: { reducedMotion: 'reduce' } }));
+
+dyn('MW15', ['MWG G15'], 'Absence : annonce par une région live existante ou ariaNotify, texte seul', async ({ ouvrir }) => {
+    const essai = (page) => page.evaluate(async (src) => {
+        const ui = window.__mk.ui();
+        const regions = ui ? ui.querySelectorAll('[aria-live]').length : 0;
+        const carte = await (0, eval)(`(${src})`)();
+        await window.__mk.sleep(300);
+        const region = window.__mk.ui().querySelector('.annonce');
+        return { regions, carteLive: carte.matches('[aria-live], [role="status"]'), annonces: window.__annonces || [], region: region ? region.textContent : '' };
+    }, AFFICHER_ABSENCE.toString());
+    // Sans ariaNotify : la région live de l'interface.
+    const repli = await ouvrir(essai, { before: () => { delete Element.prototype.ariaNotify; delete Document.prototype.ariaNotify; } });
+    // Avec ariaNotify : l'annonce lui est confiée.
+    const natif = await ouvrir(essai, { before: () => { Element.prototype.ariaNotify = function (t) { (window.__annonces = window.__annonces || []).push(t); }; } });
+    const bon = (t) => /Pendant ton absence/.test(t) && /4 messages/.test(t) && !/Fermer/.test(t);
+    const ok = repli.regions >= 1 && !repli.carteLive && bon(repli.region) && natif.annonces.length === 1 && bon(natif.annonces[0]) && !natif.region;
+    return { ok, details: `régions live avant la carte : ${repli.regions} ; carte elle-même live=${repli.carteLive} ; région : « ${repli.region} » ; ariaNotify : « ${natif.annonces[0] || '—'} »` };
+});
+
+dyn('MW16', ['MWG G16'], 'Absence : le dernier résumé se revoit depuis le panneau', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async (src) => {
+        const carte = await (0, eval)(`(${src})`)();
+        if (!carte) return { ok: false, details: 'aucune carte' };
+        const messages = carte.dataset.messages;
+        carte.querySelector('.fermer').click();
+        window.__BTC.reglages.ouvrir('reglages');
+        const ui = window.__mk.ui();
+        const revoir = ui.querySelector('[data-action="revoir-absence"]');
+        if (!revoir || revoir.hidden) return { ok: false, details: 'aucun moyen de revoir le résumé' };
+        revoir.focus();
+        revoir.click();
+        const nouvelle = ui.querySelector('.carte.absence');
+        const titre = nouvelle && nouvelle.querySelector('h2');
+        const ok = !!nouvelle && nouvelle.dataset.messages === messages && ui.activeElement === titre;
+        return { ok, details: `carte revue=${!!nouvelle}, messages ${nouvelle ? nouvelle.dataset.messages : '—'}/${messages}, focus sur son titre=${ui.activeElement === titre} ; état : « ${ui.querySelector('#btc-dernier-resume').textContent} »` };
+    }, AFFICHER_ABSENCE.toString())));
+
+dyn('MW19', ['MWG G19', 'MWG G20'], 'Absence et pouls : vrais titres, listes marquées comme telles', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.interne.terminerStabilisation();
+        window.__BTC.config.absence.minimumS = 0;
+        mk.masquer(true);
+        root.appendChild(mk.message({ user: 'carol', text: '@testeur tu as vu ça ?' }));
+        await mk.sleep(400);
+        mk.masquer(false);
+        await mk.frames(2);
+        const ui = mk.ui();
+        const c = ui.querySelector('.carte.absence');
+        window.__BTC.reglages.ouvrir('pouls');
+        const titreCarte = c && c.querySelector('h2');
+        const titreMentions = c && c.querySelector('h3.titre-bloc');
+        const listes = [c && c.querySelector('ul.mentions'), ui.querySelector('ol.moments')];
+        const ok = !!titreCarte && c.getAttribute('aria-labelledby') === titreCarte.id && !!titreMentions
+            && listes.every((l) => l && l.getAttribute('role') === 'list');
+        return { ok, details: `titre de la carte : ${titreCarte ? '<h2>' : 'aucun'}, mentions : ${titreMentions ? '<h3>' : 'aucun'}, role="list" : ${listes.map((l) => (l ? l.getAttribute('role') : 'absente')).join(', ')}` };
+    }), { before: PROFIL() }));
+
+dyn('MW21', ['MWG G21'], 'Pouls : copie annoncée, un second clic relance l\'attente', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.resolve() } });
+        window.__BTC.reglages.changer('pouls.enabled', true);
+        window.__BTC.reglages.ouvrir('pouls');
+        const copier = [...mk.ui().querySelectorAll('[data-vue="pouls"] button')].find((b) => /Copier/.test(b.textContent));
+        copier.click();
+        await mk.sleep(1500);
+        copier.click();
+        await mk.sleep(1000);
+        const pendant = copier.textContent;
+        await mk.sleep(1300);
+        const apres = copier.textContent;
+        const annonces = window.__annonces || [];
+        const ok = pendant === 'Copiée' && apres === 'Copier la liste' && annonces.length === 2 && /copiée/.test(annonces[0]);
+        return { ok, details: `libellé 1 s après le second clic « ${pendant} », 2,3 s après « ${apres} » ; annonces : ${annonces.length} (« ${annonces[0] || '—'} »)` };
+    }), { before: () => { Element.prototype.ariaNotify = function (t) { (window.__annonces = window.__annonces || []).push(t); }; } }));
+
+dyn('MW22', ['MWG G22'], 'Rafale : le message joint d\'une notice réapparaît au focus clavier', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk;
+        mk.root().appendChild(mk.notice({ html: `<p>${mk.name('carol')} s'est réabonné pour 3 mois.</p>`, after: mk.nested('carol', 'merci à tous') }));
+        await mk.frames(4);
+        document.documentElement.classList.add('btc-rafale');
+        const ligne = document.querySelector('[data-test-selector="user-notice-line"]');
+        const message = ligne.querySelector('.chat-line__message');
+        const avant = getComputedStyle(message).display;
+        ligne.tabIndex = 0;
+        ligne.focus();
+        const auFocus = getComputedStyle(message).display;
+        return { ok: avant === 'none' && auFocus !== 'none', details: `message joint en rafale : ${avant} sans focus, ${auFocus} avec le focus dans la notice` };
+    })));
+
+dyn('MW23', ['MWG G23'], 'Fil : le focus clavier dans une réponse montre son fil', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root();
+        window.__BTC.config.fil.delaiMs = 0;
+        root.appendChild(mk.message({ user: 'bob', text: 'le message de bob' }));
+        root.appendChild(mk.reply({ user: 'alice', to: 'bob', quoted: 'le message de bob', text: 'bien dit' }));
+        await mk.frames(4);
+        const [origine, reponse] = root.querySelectorAll('.chat-line__message');
+        reponse.tabIndex = 0;
+        reponse.focus();
+        await mk.sleep(50);
+        const parent = origine.classList.contains('btc-fil-parent');
+        document.querySelector('[data-a-target="chat-input"]').focus();
+        await mk.sleep(50);
+        const efface = !origine.classList.contains('btc-fil-parent');
+        return { ok: parent && efface, details: `origine marquée au focus=${parent}, effacée quand le focus quitte le chat=${efface}` };
+    })));
+
+stat('MWM', ['MWG G18', 'MWG G25', 'MWG G28'], 'Copies de tableaux, aria-controls des onglets et transition sans effet retirés',
+    verifAbsence(['[...valeurs].sort', '[...moments].reverse', "'aria-controls'", 'transition: opacity 0.15s']));
+
+dyn('MWC', ['MWG G24', 'MWG G27'], 'Panneau : hauteur en dvh, zone de copie redimensionnable en hauteur seulement', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(() => {
+        window.__BTC.reglages.ouvrir('pouls');
+        const ui = window.__mk.ui();
+        const regles = [...ui.querySelector('style').sheet.cssRules].map((r) => r.cssText).join('\n');
+        const dvh = /\.panneau \{[^}]*100dvh/.test(regles);
+        const resize = getComputedStyle(ui.querySelector('.copie')).resize;
+        return { ok: dvh && resize === 'vertical', details: `max-height en dvh=${dvh}, resize de la zone de copie=${resize}` };
+    })));
 
 /** Cas propres à une seule variante : les autres les marquent « ignoré ». */
 const seulementSur = (variante, ...ids) => ids.forEach((id) => { CAS.find((c) => c.id === id).variante = variante; });

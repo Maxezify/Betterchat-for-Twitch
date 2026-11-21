@@ -19,9 +19,9 @@ l'audit précédent.
 
 | Statut | Points |
 |---|---|
-| Corrigé | 28 — B1, B3-B9, R1, R3-R5, P1, P3, P5, M1-M3, M5, Q1, Q2, Q4-Q6, S1, T1-T3 |
+| Corrigé | 29 — B1, B3-B9, R1, R3-R5, P1, P3, P5, M1-M3, M5, Q1, Q2, Q4-Q6, S1, T1-T3, A1 (v15.26.4) |
 | Sans objet | 6 — B2, P2, R2, S2, S3, M4 : ils portaient sur l'historique long, retiré en v15.26.2 après avoir été corrigés en v15.26.1 |
-| Partiel | 3 — P4 (mentions compilées une fois, sans cache de lecture : gain nul), A1 (panneau en `region` ; fil toujours à la souris), T4 (horloge simulée dans le banc ; F3b encore en temps réel) |
+| Partiel | 2 — P4 (mentions compilées une fois, sans cache de lecture : gain nul), T4 (horloge simulée dans le banc ; F3b encore en temps réel) |
 | Conservé | 4 — R7 (stabilisation nécessaire aux reconnexions), R8 (bouton surveillé), M6 (outils de test documentés), S4 (`@noframes`, à trancher) |
 | Reporté | 1 — Q3 (assemblage depuis plusieurs fichiers : restructuration à mener seule) |
 | À vérifier | 1 — R6 (sur le DOM réel de Twitch) |
@@ -49,6 +49,13 @@ plus haut de 6,6 px, un défaut que l'audit n'avait pas relevé.
 - **M1.** `quantite` était bien morte, mais pas le genre `gift-multiple`. Sans lui, l'annonce
   d'un gift multiple, qui parle d'abonnements, serait comptée comme un abonnement dans « Pendant
   ton absence ». Il est gardé et commenté.
+
+**Rectificatif ultérieur (v15.26.4) — A1.** L'audit selon Modern Web Guidance
+([`AUDIT-MWG.md`](AUDIT-MWG.md), G14) montre que la correction retenue ici était fausse. Le
+reproche fait au panneau, alors en `role="dialog"` (focus non retenu, pas d'`aria-modal`), ne
+valait que pour un dialogue modal. Un panneau qui laisse utiliser la page est un dialogue non
+modal : la v15.26.4 en fait un `<dialog>` ouvert par `show()`, titré par un `h2`, au lieu de la
+région. Le fil de conversation suit aussi le focus clavier (G23). A1 passe à « corrigé ».
 
 ---
 

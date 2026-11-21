@@ -174,7 +174,9 @@ const CAS = [
         await window.__mk.sleep(1200);
         const b = document.querySelector('.btc-bouton');
         b.click();
-        const ouvert = !window.__mk.ui().querySelector('.panneau').hidden;
+        const p = window.__mk.ui().querySelector('.panneau');
+        // <dialog> depuis la v15.26.4 (open), élément caché par hidden avant.
+        const ouvert = p.tagName === 'DIALOG' ? p.open : !p.hidden;
         return { reproduit: ouvert && !b.hasAttribute('aria-expanded'),
             mesure: `panneau ouvert : ${ouvert} ; aria-expanded : ${b.getAttribute('aria-expanded')} ; aria-keyshortcuts : ${b.getAttribute('aria-keyshortcuts')} ; title : « ${b.title} »` };
     }))],
@@ -220,7 +222,7 @@ const CAS = [
         const p = window.__mk.ui().querySelector('.panneau');
         const titre = p.querySelector('h1, h2, h3');
         return { reproduit: p.getAttribute('role') === 'region' || p.tagName !== 'DIALOG',
-            mesure: `<${p.tagName.toLowerCase()} role="${p.getAttribute('role')}">, nom par aria-label « ${p.getAttribute('aria-label')} », premier titre : ${titre ? `<${titre.tagName.toLowerCase()}> « ${titre.textContent} »` : 'aucun'} ; titre visible : <${p.querySelector('.titre strong').tagName.toLowerCase()}>` };
+            mesure: `<${p.tagName.toLowerCase()} role="${p.getAttribute('role')}">, nom par aria-label « ${p.getAttribute('aria-label')} », premier titre : ${titre ? `<${titre.tagName.toLowerCase()}> « ${titre.textContent} »` : 'aucun'} ; titre visible : <${p.querySelector('.titre h2, .titre strong').tagName.toLowerCase()}>` };
     }))],
 
     ['G15', 'Carte d\'absence : région live créée avec son contenu, au lieu d\'exister avant le message', (nav) => ouvrir(nav, (page) => page.evaluate(async (src) => {
@@ -240,10 +242,13 @@ const CAS = [
         const resume = carte.querySelector('p').textContent;
         carte.querySelector('.fermer').click();
         window.__BTC.reglages.ouvrir('reglages');
-        const textes = [window.__mk.ui().textContent, JSON.stringify(Object.keys(window.__BTC))].join(' ');
-        window.__BTC.reglages.ouvrir('pouls');
-        const retrouve = textes.includes(resume) || window.__mk.ui().textContent.includes(resume);
-        return { reproduit: !retrouve, mesure: `« ${resume} » retrouvé après fermeture : ${retrouve}` };
+        const ui = window.__mk.ui();
+        // Une commande du panneau qui réaffiche le résumé, sinon son texte quelque part.
+        const revoir = ui.querySelector('[data-action="revoir-absence"]');
+        if (revoir && !revoir.hidden) revoir.click();
+        const revue = ui.querySelector('.carte.absence');
+        const retrouve = (!!revue && revue.textContent.includes(resume)) || ui.textContent.includes(resume);
+        return { reproduit: !retrouve, mesure: `« ${resume} » retrouvé après fermeture : ${retrouve}${revoir ? ' (bouton « Revoir le dernier résumé »)' : ''}` };
     }, AFFICHER_ABSENCE.toString()))],
 
     ['P1', 'Changement d\'un réglage sur un chat chargé : tâche de plus de 50 ms', (nav) => ouvrir(nav, (page) => page.evaluate(async () => {

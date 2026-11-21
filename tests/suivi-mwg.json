@@ -20,10 +20,10 @@
       "categorie": "Thème",
       "titre": "Pas de color-scheme : contrôles natifs clairs sur le thème sombre",
       "preuve": "cas G1, capture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G1",
-      "note": "color-scheme sur .panneau et .carte d'après la luminance du fond de Twitch. Effet réel à confirmer sur Twitch (§8).",
-      "tests": ""
+      "note": "color-scheme sur le panneau et la carte, d'après la luminance du fond de Twitch (majSchema, relu à l'ouverture et chaque seconde tant que l'interface est visible).",
+      "tests": "MW1"
     },
     {
       "id": "G2",
@@ -31,10 +31,10 @@
       "categorie": "Contraste",
       "titre": "Texte cité et notices discrètes à 3,20:1 en thème clair",
       "preuve": "cas G2",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G2",
-      "note": "color-mix(in oklab, texte 60 %, fond) : 5,57:1 en sombre, 6,00:1 en clair.",
-      "tests": ""
+      "note": "color-mix(in oklab, texte 60 %, fond), résolu sur l'élément : 5,57:1 en sombre, 6,00:1 en clair.",
+      "tests": "MW2"
     },
     {
       "id": "G3",
@@ -42,10 +42,10 @@
       "categorie": "Contraste",
       "titre": "Alerte du panneau à 3,87:1 en thème clair",
       "preuve": "cas G3",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G3",
-      "note": "Rouge plus sombre en thème clair (#d6232f : 5,07:1).",
-      "tests": ""
+      "note": "#d6232f en thème clair : 5,07:1.",
+      "tests": "MW3"
     },
     {
       "id": "G4",
@@ -53,10 +53,10 @@
       "categorie": "Contrastes forcés",
       "titre": "Tous les onglets paraissent sélectionnés",
       "preuve": "cas G4, capture, contre-épreuve",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G4",
-      "note": "Trait de l'onglet actif sur ::after, hauteur gardée par le remplissage.",
-      "tests": ""
+      "note": "Trait de l'onglet actif sur ::after ; hauteur gardée par le remplissage.",
+      "tests": "MW4"
     },
     {
       "id": "G5",
@@ -64,10 +64,10 @@
       "categorie": "Contrastes forcés",
       "titre": "Point de rafale invisible",
       "preuve": "cas G5, capture, contre-épreuve",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G5",
-      "note": "Point dessiné par sa bordure : visible en contrastes forcés, identique sinon.",
-      "tests": ""
+      "note": "Point dessiné par sa bordure.",
+      "tests": "MW4"
     },
     {
       "id": "G6",
@@ -75,10 +75,10 @@
       "categorie": "Focus",
       "titre": "Carte d'absence fermée au clavier : focus sur <body>",
       "preuve": "cas G6",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G6",
-      "note": "Rendre le focus à l'élément qui l'avait, sinon à la saisie du chat.",
-      "tests": ""
+      "note": "Le focus revient à l'élément qui l'avait à l'apparition de la carte, sinon à la saisie du chat.",
+      "tests": "MW6"
     },
     {
       "id": "G7",
@@ -86,10 +86,10 @@
       "categorie": "Focus",
       "titre": "Carte d'absence fermée seule pendant qu'on y navigue",
       "preuve": "cas G7",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G7",
-      "note": "Minuterie suspendue tant que le focus est dans la carte.",
-      "tests": ""
+      "note": "Minuterie suspendue tant que la souris est dessus ou le focus dedans ; 15 s après la sortie.",
+      "tests": "MW7"
     },
     {
       "id": "G8",
@@ -97,10 +97,10 @@
       "categorie": "Focus",
       "titre": "« Activer le pouls du chat » retiré sous le focus",
       "preuve": "cas G8",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G8",
-      "note": "Déplacer le focus avant de vider la zone.",
-      "tests": ""
+      "note": "Le focus passe au compteur, focalisable par script.",
+      "tests": "MW8"
     },
     {
       "id": "G9",
@@ -108,10 +108,10 @@
       "categorie": "Langue",
       "titre": "Interface française sans lang=\"fr\"",
       "preuve": "cas G9",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G9",
-      "note": "lang=\"fr\" sur #btc-ui et sur le bouton.",
-      "tests": ""
+      "note": "lang=\"fr\" sur l'hôte de l'interface, le bouton et les notices traduites (retiré avec la traduction).",
+      "tests": "MW9"
     },
     {
       "id": "G10",
@@ -119,10 +119,10 @@
       "categorie": "Sémantique",
       "titre": "Bouton du panneau sans aria-expanded ; raccourci seulement en infobulle",
       "preuve": "cas G10",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G10",
-      "note": "aria-expanded, aria-keyshortcuts, état de rafale en aria-description.",
-      "tests": ""
+      "note": "aria-expanded, aria-keyshortcuts=\"Alt+Shift+B\", nom fixe, rafale en aria-description.",
+      "tests": "MW10"
     },
     {
       "id": "G11",
@@ -130,10 +130,10 @@
       "categorie": "Formulaires",
       "titre": "Aides de réglage non reliées à leur champ",
       "preuve": "cas G11",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G11",
-      "note": "id sur l'aide, aria-describedby sur le champ.",
-      "tests": ""
+      "note": "aria-describedby sur les champs et sur les sections qui ont une aide.",
+      "tests": "MW11"
     },
     {
       "id": "G12",
@@ -141,10 +141,10 @@
       "categorie": "Clavier",
       "titre": "Flèches des onglets actives avec Alt, sans preventDefault",
       "preuve": "cas G12",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G12",
-      "note": "Ignorer les modificateurs, preventDefault, Début et Fin.",
-      "tests": ""
+      "note": "Modificateurs ignorés, preventDefault, Début et Fin.",
+      "tests": "MW12"
     },
     {
       "id": "G13",
@@ -152,10 +152,10 @@
       "categorie": "Mouvement",
       "titre": "Glissement du chat malgré « réduire les animations »",
       "preuve": "cas G13",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G13",
-      "note": "smoothScrollMs traité comme 0 en mouvement réduit.",
-      "tests": ""
+      "note": "Saut direct en bas quand prefers-reduced-motion: reduce (requête suivie en direct).",
+      "tests": "MW13"
     },
     {
       "id": "G14",
@@ -163,10 +163,10 @@
       "categorie": "Sémantique",
       "titre": "Panneau en role=\"region\" titré par un <strong>",
       "preuve": "cas G14",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G14",
-      "note": "<dialog> non modal (show/close), <h2> visible et aria-labelledby. Revient sur A1 de l'audit 15.26 (région) : le cas 26A1 sera à revoir.",
-      "tests": ""
+      "note": "<dialog> non modal (show/close), <h2> et aria-labelledby. Revient sur A1 de l'audit 15.26 ; 26A1 revu.",
+      "tests": "26A1"
     },
     {
       "id": "G15",
@@ -174,10 +174,10 @@
       "categorie": "Annonces",
       "titre": "Carte d'absence : région live créée avec son contenu",
       "preuve": "cas G15",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G15",
-      "note": "Région live présente dès l'installation, texte seul ; ariaNotify() si disponible.",
-      "tests": ""
+      "note": "ariaNotify() sur un élément de l'interface, sinon région live créée au démarrage ; texte seul, « Actions disponibles » s'il y a des mentions. La carte est une région nommée par son titre.",
+      "tests": "MW15"
     },
     {
       "id": "G16",
@@ -185,10 +185,10 @@
       "categorie": "Notifications",
       "titre": "Résumé d'absence introuvable une fois la carte fermée",
       "preuve": "cas G16",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "G16",
-      "note": "Dernier résumé consultable dans le panneau.",
-      "tests": ""
+      "note": "« Revoir le dernier résumé » dans la section « Pendant ton absence » du panneau ; le focus entre dans la carte.",
+      "tests": "MW16"
     },
     {
       "id": "G17",
@@ -198,7 +198,7 @@
       "preuve": "cas G17",
       "statut": "à vérifier",
       "reproduction": "G17",
-      "note": "Passer en rem si la racine de Twitch suit la préférence du navigateur (§8).",
+      "note": "Non modifié : passer en rem n'a d'effet que si la racine de Twitch suit la préférence du navigateur (§8 de l'audit).",
       "tests": ""
     },
     {
@@ -207,10 +207,10 @@
       "categorie": "JavaScript",
       "titre": "Copies de tableaux avant sort() et reverse()",
       "preuve": "legacy-scan",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
-      "note": "toSorted() et toReversed(), L2728 et L3933.",
-      "tests": ""
+      "note": "toSorted() et toReversed().",
+      "tests": "MWM"
     },
     {
       "id": "G19",
@@ -218,10 +218,10 @@
       "categorie": "Sémantique",
       "titre": "Listes sans puces en grille sans role=\"list\" (Safari)",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
-      "note": "role=\"list\" sur ol.moments et ul.mentions.",
-      "tests": ""
+      "note": "role=\"list\" sur ul.mentions et ol.moments.",
+      "tests": "MW19"
     },
     {
       "id": "G20",
@@ -229,10 +229,10 @@
       "categorie": "Sémantique",
       "titre": "Faux titres dans la carte d'absence",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
       "note": "<h2> pour la carte, <h3> pour les mentions.",
-      "tests": ""
+      "tests": "MW19"
     },
     {
       "id": "G21",
@@ -240,10 +240,10 @@
       "categorie": "Annonces",
       "titre": "Retour « Copiée » non annoncé ; minuterie non annulée",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
-      "note": "Annonce par la région live de G15 ; clearTimeout.",
-      "tests": ""
+      "note": "Annonce « Liste des moments forts copiée » ; clearTimeout ; en cas de refus, focus dans le champ sélectionné et annonce.",
+      "tests": "MW21"
     },
     {
       "id": "G22",
@@ -251,10 +251,10 @@
       "categorie": "Clavier",
       "titre": "Rafale : message joint révélé au survol seulement",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
       "note": ":not(:hover):not(:focus-within).",
-      "tests": ""
+      "tests": "MW22"
     },
     {
       "id": "G23",
@@ -262,10 +262,10 @@
       "categorie": "Clavier",
       "titre": "Fil de conversation au survol seulement",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
-      "note": "À décider : déclencher aussi sur focusin.",
-      "tests": ""
+      "note": "focusin et focusout sur le conteneur du chat.",
+      "tests": "MW23"
     },
     {
       "id": "G24",
@@ -273,10 +273,10 @@
       "categorie": "Mise en page",
       "titre": "100vh au lieu de 100dvh",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
-      "note": "Sans effet sur ordinateur.",
-      "tests": ""
+      "note": "max-height en 100dvh, après une valeur en 100vh.",
+      "tests": "MWC"
     },
     {
       "id": "G25",
@@ -284,10 +284,10 @@
       "categorie": "Sémantique",
       "titre": "aria-controls sur les onglets, inutile",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
-      "note": "Inoffensif.",
-      "tests": ""
+      "note": "Retiré.",
+      "tests": "MWM"
     },
     {
       "id": "G26",
@@ -295,9 +295,9 @@
       "categorie": "Typographie",
       "titre": "Légendes en capitales de 11 px",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "conservé",
       "reproduction": "",
-      "note": "Choix de style.",
+      "note": "Gardé : choix de style des titres de section.",
       "tests": ""
     },
     {
@@ -306,10 +306,10 @@
       "categorie": "Formulaires",
       "titre": "Zone de copie redimensionnable en largeur",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
       "note": "resize: vertical.",
-      "tests": ""
+      "tests": "MWC"
     },
     {
       "id": "G28",
@@ -317,10 +317,10 @@
       "categorie": "Mouvement",
       "titre": "Animation annulée par animation: none ; transition de carte sans effet",
       "preuve": "lecture",
-      "statut": "ouvert",
+      "statut": "corrigé",
       "reproduction": "",
-      "note": "Écriture inverse de celle du guide ; règle .carte sans effet.",
-      "tests": ""
+      "note": "Contour fixe par défaut, fondu dans prefers-reduced-motion: no-preference ; règle .carte sans effet retirée.",
+      "tests": "MWM, 26B1"
     },
     {
       "id": "P1",
@@ -410,5 +410,9 @@
       "note": "Fonction volatile ; le graphe a déjà son alternative textuelle.",
       "tests": ""
     }
-  ]
+  ],
+  "corrections": {
+    "version": "15.26.4",
+    "date": "2026-11-21"
+  }
 }

@@ -31,7 +31,8 @@ noms n'ont pas changé : il remplace une installation faite depuis l'ancien dép
 Le panneau s'ouvre avec le bouton ajouté à côté de l'engrenage des réglages du chat, ou avec
 **Alt+Maj+B**, y compris depuis la zone de saisie du chat. Échap le ferme et rend la main là où
 elle était. Sous macOS, Option+Maj+B tape un caractère dans un champ de saisie : il y est laissé,
-le bouton ouvre alors le panneau. Le panneau a deux onglets : *Réglages* et *Pouls du chat*.
+le bouton ouvre alors le panneau. Le panneau a deux onglets : *Réglages* et *Pouls du chat*. Il suit le thème de Twitch, clair ou
+sombre, contrôles natifs compris, et se lit au clavier et au lecteur d'écran.
 Un réglage changé s'applique tout de suite, sans recharger la page, messages déjà affichés
 compris, et il revient en arrière aussi bien. Seule exception : le regroupement des gifts,
 réactivé, ne vaut que pour les gifts suivants. Le réglage reste enregistré dans ce navigateur
@@ -42,9 +43,12 @@ confirmation.
 | Fonction | Par défaut | Ce qu'elle fait |
 |---|---|---|
 | Densité adaptative | activée | Quand le chat dépasse 8 messages par seconde (mesurés sur 5 s), il se resserre : badges secondaires masqués (modo, VIP, diffuseur et staff restent), notices et citations sur une ligne, interligne réduit, point rouge sur le bouton du panneau (débit en infobulle). Il revient à la normale sous 5 messages par seconde, mesurés sur 10 s, et pas avant 10 s. Seuils et effets réglables un par un. |
-| Fil de conversation | activée | Au survol d'une réponse, le message d'origine et les autres réponses au même message sont encadrés, le reste du chat s'estompe. |
-| Pendant ton absence | activée | Au retour sur l'onglet après au moins 60 s : nombre de messages et pic de cadence, abonnements, gifts, raids, mentions (« @pseudo » ou réponse à l'un de tes messages, avec « Aller au message »), emotes les plus utilisées, personnes les plus actives. La carte s'affiche en bas du chat et se ferme seule au bout d'une minute. Si la chaîne a changé pendant l'absence (raid), elle le dit et ne résume que la nouvelle. |
+| Fil de conversation | activée | Au survol d'une réponse, ou quand le focus clavier y entre, le message d'origine et les autres réponses au même message sont encadrés, le reste du chat s'estompe. |
+| Pendant ton absence | activée | Au retour sur l'onglet après au moins 60 s : nombre de messages et pic de cadence, abonnements, gifts, raids, mentions (« @pseudo » ou réponse à l'un de tes messages, avec « Aller au message »), emotes les plus utilisées, personnes les plus actives. La carte s'affiche en bas du chat et se ferme seule au bout d'une minute, sauf tant que la souris est dessus ou le focus dedans. Si la chaîne a changé pendant l'absence (raid), elle le dit et ne résume que la nouvelle. « Revoir le dernier résumé », dans le panneau, la réaffiche. |
 | Pouls du chat | **coupée** | Cadence par tranche de 10 s, graphique des deux dernières heures et moments forts de toute la session (pics par rapport à la normale du chat), avec l'heure du live quand Twitch l'affiche, l'emote dominante et un message représentatif. La liste se copie pour préparer des clips. Tout se lit dans le panneau : rien ne s'affiche dans le chat. |
+
+Si le système demande de réduire les animations, le chat ne glisse plus vers le bas : il y saute,
+comme sur Twitch.
 
 Les lignes que Twitch rejoue à l'ouverture du chat ne comptent pas comme des arrivées : la
 cadence, le résumé et le pouls ne prennent en compte que le direct. Changer de chaîne remet la
@@ -129,7 +133,7 @@ gardés.
   reproduisent avec `npm run audit:reproduction`.
 - [`AUDIT-MWG.md`](AUDIT-MWG.md) : la v15.26.3 confrontée au guide
   [Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance-src) (accessibilité,
-  thèmes, JavaScript moderne) ; écarts reproduits par `npm run audit:mwg`, suivis dans
-  [`tests/suivi-mwg.json`](tests/suivi-mwg.json).
+  thèmes, JavaScript moderne) et suivi des corrections de la v15.26.4 (§0) ; écarts reproduits
+  par `npm run audit:mwg`, suivis dans [`tests/suivi-mwg.json`](tests/suivi-mwg.json).
 - [`CHANGELOG.md`](CHANGELOG.md) : journal des versions.
 - [`tests/suivi.json`](tests/suivi.json) : statut de chaque point de l'audit.
