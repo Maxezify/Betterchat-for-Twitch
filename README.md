@@ -127,5 +127,9 @@ gardés.
   suivi des corrections ; reproduction : `npm run audit:reproduction:15.26`.
 - [`AUDIT-15.26.2.md`](AUDIT-15.26.2.md) : audit complet de la v15.26.2 ; ses constats se
   reproduisent avec `npm run audit:reproduction`.
+- [`AUDIT-MWG.md`](AUDIT-MWG.md) : la v15.26.3 confrontée au guide
+  [Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance-src) (accessibilité,
+  thèmes, JavaScript moderne) ; écarts reproduits par `npm run audit:mwg`, suivis dans
+  [`tests/suivi-mwg.json`](tests/suivi-mwg.json).
 - [`CHANGELOG.md`](CHANGELOG.md) : journal des versions.
 - [`tests/suivi.json`](tests/suivi.json) : statut de chaque point de l'audit.

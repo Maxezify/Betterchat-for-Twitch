@@ -9,6 +9,7 @@
     "test:prod": "node tests/banc.js --ref origin/prod",
     "audit:reproduction": "node tests/reproduction-15.26.2.js",
     "audit:reproduction:15.26": "node tests/reproduction-15.26.js",
+    "audit:mwg": "node tests/reproduction-mwg.js",
     "build": "node scripts/build.js",
     "lint": "eslint --max-warnings 0 BetterTwitchChat.user.js",
     "prepare": "git config core.hooksPath .githooks || true"
