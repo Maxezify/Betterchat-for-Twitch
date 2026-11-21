@@ -1,5 +1,41 @@
 # Journal des versions
 
+## 15.26.3 — 21 novembre 2026
+
+Corrections issues de l'audit de la v15.26.2 ([`AUDIT-15.26.2.md`](AUDIT-15.26.2.md), suivi
+au §0). Aucune nouvelle fonction.
+
+### Corrigé
+- Alt+Maj+B ouvre de nouveau le panneau depuis la zone de saisie du chat (Windows, Linux).
+  Seul le caractère qu'Option+Maj+B tape sous macOS est laissé au champ. (B1)
+- Échap, ou la fermeture du panneau, rend le focus là où il était, par exemple à la saisie du
+  chat. (B2)
+- Pouls : une session par chaîne, gardée le temps de la page pour les 5 dernières. Un
+  aller-retour sur une autre chaîne (clic, raid) ne perd plus les moments forts. (B3)
+- « Pendant ton absence » : si la chaîne change pendant l'absence, le résumé ne porte que sur la
+  nouvelle et le dit. (B4)
+- Pouls : le compteur n'est plus réécrit chaque seconde ni annoncé en boucle par les lecteurs
+  d'écran ; la liste et le graphe ne sont refaits que s'ils changent. (B5, P1, A1)
+- Plus rien n'est posé en haut du chat, où Twitch affiche ses bandeaux : la rafale se signale
+  par un point rouge sur le bouton du panneau, débit en infobulle. La carte d'absence s'affiche
+  en bas du chat. (B6)
+- Le clic sur le bouton du panneau ne remonte plus aux conteneurs de Twitch. (B7)
+- « 1 message sur la dernière minute », au singulier. (B8)
+
+### Robustesse
+- Le bouton ne copie plus les états de l'engrenage (`disabled`, `tabindex`). (R1)
+- Sa reconstruction est notée dans le journal de débogage. (R2)
+- Le code qui efface l'ancien historique porte son échéance : à retirer en v15.28. (R3)
+
+### Nettoyage
+- Code mort retiré : règle `input[type="search"]`, option `marquer`, global `IDBKeyRange`,
+  styles de l'ancienne pastille. (M1-M4)
+
+### Outillage
+- Banc : la page imitée a un éditeur `contenteditable` comme la vraie saisie de Twitch (T2).
+  26R4 vérifie le cas macOS et ne fige plus le comportement fautif (T1). 12 cas ajoutés ou revus
+  (62B1 à 62B8, 62R1, 62M, F3a, 26R4), 94 au total (T3).
+
 ## 15.26.2 — 19 novembre 2026
 
 ### Retiré

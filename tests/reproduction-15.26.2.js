@@ -68,7 +68,7 @@ const CAS = [
         document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
         const actif = document.activeElement;
         const surSaisie = actif === saisie;
-        const description = actif ? (actif.classList.contains('btc-bouton') ? 'bouton du panneau' : actif.tagName.toLowerCase()) : 'aucun';
+        const description = surSaisie ? 'la saisie du chat' : actif ? (actif.classList.contains('btc-bouton') ? 'bouton du panneau' : actif.tagName.toLowerCase()) : 'aucun';
         return { reproduit: !surSaisie, mesure: `focus après Échap : ${description} (attendu : la saisie du chat)` };
     }))],
 
@@ -105,11 +105,13 @@ const CAS = [
         window.__BTC.reglages.changer('pouls.enabled', true);
         window.__BTC.reglages.ouvrir('pouls');
         const vue = window.__mk.ui().querySelector('[data-vue="pouls"]');
-        const live = vue.querySelector('[aria-live]');
+        const compteur = vue.querySelector('.chiffres');
+        const enDirect = compteur.hasAttribute('aria-live');
         let ecritures = 0;
-        new MutationObserver((m) => { ecritures += m.length; }).observe(live, { childList: true, characterData: true, subtree: true });
+        new MutationObserver((m) => { ecritures += m.length; }).observe(compteur, { childList: true, characterData: true, subtree: true });
         await window.__mk.sleep(3200);
-        return { reproduit: ecritures >= 3, mesure: `région aria-live réécrite ${ecritures} fois en 3 s, texte inchangé « ${live.textContent} »` };
+        return { reproduit: enDirect && ecritures >= 3,
+            mesure: `compteur en aria-live=${enDirect}, réécrit ${ecritures} fois en 3 s, texte inchangé « ${compteur.textContent} »` };
     }))],
 
     ['B6', 'Pastille de rafale posée sur le haut du chat, là où Twitch affiche ses bandeaux', (nav) => ouvrir(nav, (page) => page.evaluate(async () => {
@@ -119,8 +121,9 @@ const CAS = [
         B.config.rafale.fenetreS = 1;
         for (let i = 0; i < 20; i++) root.appendChild(mk.message({ text: `m${i}` }));
         await mk.sleep(1300);
-        const p = mk.ui() && mk.ui().querySelector('.pastille');
-        if (!p || p.hidden) return { reproduit: false, mesure: 'pastille absente' };
+        const visibles = mk.ui() ? [...mk.ui().querySelectorAll('.couche > *')].filter((e) => !e.hidden) : [];
+        const p = visibles[0];
+        if (!p) return { reproduit: false, mesure: 'rien n\'est posé sur le chat pendant la rafale' };
         const r = p.getBoundingClientRect();
         const sc = document.querySelector('[data-a-target="chat-scroller"]').getBoundingClientRect();
         const dansLeHaut = r.top >= sc.top && r.bottom <= sc.top + 40;

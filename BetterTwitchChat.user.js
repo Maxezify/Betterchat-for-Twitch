@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BetterTwitchChat (+ 7TV)
 // @namespace    https://github.com/Maxezify/BetterTwitchChat-with-7tv
-// @version      15.26.2
+// @version      15.26.3
 // @description  Réponses lisibles en entier (emotes incluses), notices sub/prime/gift compactées, regroupement des gifts multiples ; panneau de réglages, densité en rafale, fil de conversation, résumé d'absence et pouls du chat. Compatible chat Twitch natif + nouvelle extension 7TV.
 // @author       Maxezify
 // @match        https://www.twitch.tv/*
@@ -55,7 +55,7 @@
     // à jour. La valeur écrite ici ne sert que de repli et doit rester égale à @version
     // (le banc de test le vérifie).
     const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version)
-        || '15.26.2';
+        || '15.26.3';
 
     // Une seule instance par page. Deux gestionnaires de scripts, ou deux installations
     // sous des noms différents, feraient tourner deux observateurs et deux boucles de
@@ -1055,6 +1055,24 @@
             outline: 2px solid var(--btc-fil-couleur);
             outline-offset: 1px;
         }
+        /* Rafale en cours : un point sur le bouton du panneau. Rien n'est posé sur le chat,
+           dont le haut appartient aux bandeaux de Twitch (prédictions, moments forts de la
+           communauté, annonces). Classe doublée : passe devant le position de Twitch. */
+        .btc-bouton.btc-bouton {
+            position: relative;
+        }
+        .btc-bouton--rafale::after {
+            content: "";
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f5333f;
+            box-shadow: 0 0 0 2px var(--color-background-base, #18181b);
+            pointer-events: none;
+        }
 
         `;
     };
@@ -1071,7 +1089,7 @@
     };
 
     /**
-     * Styles de la couche d'interface (panneau, pastille, cartes), dans un shadow DOM.
+     * Styles de la couche d'interface (panneau, carte d'absence), dans un shadow DOM.
      * Les couleurs reprennent les variables de thème de Twitch, qui traversent le shadow
      * DOM ; les valeurs de repli sont celles du thème sombre.
      */
@@ -1161,7 +1179,7 @@
         .reglage.bool .aide { grid-column: 2; }
         .reglage input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
         .champ { display: inline-flex; align-items: center; gap: 6px; }
-        input[type="number"], input[type="search"], select, textarea {
+        input[type="number"], select, textarea {
             background: var(--fond-2);
             border: 1px solid var(--bord);
             border-radius: 6px;
@@ -1192,32 +1210,14 @@
         .moments time { font-variant-numeric: tabular-nums; color: var(--texte-2); }
         .copie { width: 100%; box-sizing: border-box; }
 
-        /* Pastille de rafale, en haut à droite du chat */
-        .pastille {
-            position: absolute;
-            top: 6px;
-            right: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 2px 8px 2px 6px;
-            border-radius: 999px;
-            border: 1px solid var(--bord);
-            background: color-mix(in srgb, var(--fond) 88%, transparent);
-            font-size: 12px;
-            cursor: pointer;
-            font-variant-numeric: tabular-nums;
-        }
-        .pastille.rafale { border-color: var(--alerte); }
-        .pastille.rafale .valeur { color: var(--alerte); font-weight: 700; }
-
         /* Cartes */
         .carte { background: var(--fond); border: 1px solid var(--bord); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4); }
+        /* En bas du chat, au-dessus de la saisie : le haut appartient aux bandeaux de Twitch. */
         .carte.absence {
             position: absolute;
-            top: 34px;
             left: 10px;
             right: 10px;
+            bottom: 10px;
             max-height: 60%;
             overflow: auto;
             padding: 10px 12px;
@@ -1235,7 +1235,7 @@
         .emote { display: inline-flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
         .emote img { height: 22px; width: auto; }
         @media (prefers-reduced-motion: no-preference) {
-            .pastille, .carte { transition: opacity 0.15s ease-out; }
+            .carte { transition: opacity 0.15s ease-out; }
         }
         `;
     }
@@ -2817,7 +2817,7 @@
             bool('rafale.notices', 'Notices sur une ligne, message joint au survol'),
             bool('rafale.citations', 'Citations sur une ligne'),
             bool('rafale.espacement', 'Lignes resserrées'),
-            bool('rafale.indicateur', 'Signaler la rafale dans le chat')
+            bool('rafale.indicateur', 'Signaler la rafale sur le bouton du panneau')
         ] },
         { section: 'Fil de conversation', aide: 'Au survol d\'une réponse, le message d\'origine et les autres réponses ressortent.', entrees: [
             bool('fil.enabled', 'Activer le fil au survol'),
@@ -3104,11 +3104,11 @@
         const couche = h('div', { class: 'couche', hidden: true });
         racine.append(style, couche);
         (document.body || document.documentElement).appendChild(hote);
-        ui = { racine, couche, panneau: null, vues: {}, controles: new Map(), pastille: null, carteAbsence: null };
+        ui = { racine, couche, panneau: null, vues: {}, controles: new Map(), carteAbsence: null };
         return ui;
     };
 
-    /** Cale la couche sur la zone visible du chat, pour y poser pastille et cartes. */
+    /** Cale la couche sur la zone visible du chat, pour y poser la carte d'absence. */
     const placerCouche = () => {
         if (!ui) return;
         const sc = chatRoot && chatRoot.isConnected ? getScroller() : null;
@@ -3204,10 +3204,15 @@
         } catch (e) { console.error('[BTC] panneau', e); }
     };
 
+    // Élément qui avait le focus à l'ouverture du panneau : il le retrouve à la fermeture.
+    // Ouvert depuis la saisie du chat, Échap y ramène, et on peut continuer à écrire.
+    let focusAvant = null;
     const fermerPanneau = () => {
         if (!panneauOuvert()) return;
         ui.panneau.hidden = true;
-        if (boutonPanneau && boutonPanneau.isConnected) boutonPanneau.focus();
+        const cible = focusAvant && focusAvant.isConnected ? focusAvant : boutonPanneau;
+        focusAvant = null;
+        if (cible && cible.isConnected) cible.focus();
     };
 
     const synchroniserReglages = () => {
@@ -3300,6 +3305,7 @@
 
     const ouvrirPanneau = (onglet) => {
         if (!ui || !ui.panneau) construirePanneau();
+        if (ui.panneau.hidden) focusAvant = document.activeElement;
         ui.panneau.hidden = false;
         montrerOnglet(onglet || ongletCourant);
         const tab = ui.panneau.querySelector('[role="tab"][aria-selected="true"]');
@@ -3448,6 +3454,8 @@
     // L'historique long des v15.26.0 et v15.26.1 a été retiré. La base qu'il a pu créer dans
     // ce navigateur n'a plus d'usage et pesait jusqu'à plusieurs dizaines de Mo : elle est
     // effacée au démarrage, avec la marque qui la signalait. Sans base, rien n'est fait.
+    // Code temporaire, à retirer en v15.28 : d'ici là, quiconque a essayé l'historique aura
+    // lancé une version qui l'efface.
     // =========================================================================
     const ANCIENNE_BASE = 'btc-historique';
     const ANCIENNE_MARQUE = 'btc:historique:base';
@@ -3472,8 +3480,11 @@
     // =========================================================================
     let absence = null;
 
+    // `debut` : départ de l'onglet ; `debutDecompte` : début du décompte, qui repart si la
+    // chaîne change pendant l'absence (voir plus bas).
     const nouvelleAbsence = () => ({
-        debut: Date.now(), messages: 0, notices: { abonnement: 0, gift: 0, raid: 0, serie: 0 },
+        debut: Date.now(), debutDecompte: Date.now(), chaineDepart: null,
+        messages: 0, notices: { abonnement: 0, gift: 0, raid: 0, serie: 0 },
         donateurs: new Map(), mentions: [], emotes: new Map(), auteurs: new Map(), seaux: new Map()
     });
 
@@ -3506,7 +3517,8 @@
         return {
             duree,
             messages: a.messages,
-            parMinute: Math.round(a.messages / Math.max(1, duree / 60000)),
+            parMinute: Math.round(a.messages / Math.max(1, (Date.now() - a.debutDecompte) / 60000)),
+            chaineDepart: a.chaineDepart,
             pic: Math.max(0, ...a.seaux.values()) * 6,
             notices,
             donateur: premiers(a.donateurs, 1)[0] || null,
@@ -3528,6 +3540,10 @@
         fermerAbsence();
         placerCouche();
         const lignes = [];
+        if (r.chaineDepart) {
+            lignes.push(h('p', { class: 'aide' }, `Tu es passé de ${r.chaineDepart} à ${chaineCourante} pendant ton absence : `
+                + `le résumé porte sur ${chaineCourante}.`));
+        }
         lignes.push(h('p', {}, `${pluriel(r.messages, 'message', 'messages')} · ${nombreFr(r.parMinute)}/min en moyenne`
             + (r.pic ? ` · pic à ${nombreFr(r.pic)}/min` : '')));
         const n = r.notices;
@@ -3555,7 +3571,8 @@
             lignes.push(h('p', {}, 'Les plus bavards : ', r.bavards.map(([nom, nb]) => `${nom} (${nombreFr(nb)})`).join(' · ')));
         }
         const carte = h('div', { class: 'carte absence', role: 'status', 'aria-live': 'polite',
-            'data-messages': r.messages, 'data-gifts': n.gift, 'data-abonnements': n.abonnement, 'data-raids': n.raid, 'data-mentions': r.mentions.length },
+            'data-messages': r.messages, 'data-gifts': n.gift, 'data-abonnements': n.abonnement, 'data-raids': n.raid, 'data-mentions': r.mentions.length,
+            'data-chaine-depart': r.chaineDepart },
         h('header', {}, h('strong', {}, 'Pendant ton absence'), h('span', { class: 'duree' }, dureeLisible(r.duree)),
             h('button', { type: 'button', class: 'fermer', 'aria-label': 'Fermer le résumé', onclick: fermerAbsence }, '×')),
         lignes);
@@ -3581,11 +3598,17 @@
         const duree = Date.now() - a.debut;
         if (duree < CONFIG.absence.minimumS * 1000) return;
         const evenements = Object.values(a.notices).reduce((x, y) => x + y, 0);
-        if (!a.messages && !evenements) return;
+        if (!a.messages && !evenements && !a.chaineDepart) return;
         protege(() => afficherAbsence(resumerAbsence(a, duree)));
     });
     crochets.deconnexion.push(() => fermerAbsence());
-    crochets.chaine.push(() => fermerAbsence());
+    // Changement de chaîne pendant l'absence (raid, navigation) : le décompte repart pour la
+    // nouvelle chaîne, sans mélanger les deux, et la carte dira d'où l'on vient.
+    crochets.chaine.push((ancienne) => {
+        fermerAbsence();
+        if (!absence) return;
+        absence = { ...nouvelleAbsence(), debut: absence.debut, chaineDepart: absence.chaineDepart || ancienne };
+    });
 
     // =========================================================================
     // POULS DU CHAT ET MOMENTS FORTS
@@ -3605,6 +3628,7 @@
     let moments = [];        // les mêmes, prêts à afficher (vueMoment)
     let dernierJuge = 0;     // début du dernier seau clos déjà jugé
     let cleOptionsPouls = '';
+    let versionJournal = 0;  // augmente à chaque changement du journal : la vue ne se refait qu'alors
     let debutLive = null;
     let debutLiveLuA = 0;
 
@@ -3726,6 +3750,7 @@
             if (deja) deja.n += t.n;
             else m.textes.set(cle, { ...t });
         }
+        versionJournal++;
     };
 
     const vueMoment = (m) => {
@@ -3768,6 +3793,7 @@
         journal = journal.filter((m) => m.fin <= debutFenetre);
         for (const s of seaux) delete s.pic;
         dernierJuge = 0;
+        versionJournal++;
         analyserPouls();
     };
 
@@ -3784,14 +3810,27 @@
         cleOptionsPouls = cle;
         reanalyserPouls();
     });
-    // Changement de chaîne : la session de pouls repart de zéro.
-    crochets.chaine.push(() => {
+    // Une session de pouls par chaîne, gardée le temps de la page : un aller-retour sur une
+    // autre chaîne (clic distrait, raid) ne perd plus rien. Au-delà de SESSIONS_MAX chaînes,
+    // la plus anciennement quittée part. `seaux` garde son identité (exposé dans __BTC).
+    const SESSIONS_MAX = 5;
+    const sessionsPouls = new Map();   // chaîne -> { seaux, journal, dernierJuge, debutLive }
+    crochets.chaine.push((ancienne, nouvelle) => {
+        if (ancienne) {
+            sessionsPouls.delete(ancienne);
+            sessionsPouls.set(ancienne, { seaux: seaux.splice(0), journal, dernierJuge, debutLive });
+            while (sessionsPouls.size > SESSIONS_MAX) sessionsPouls.delete(sessionsPouls.keys().next().value);
+        }
+        const reprise = sessionsPouls.get(nouvelle);
+        sessionsPouls.delete(nouvelle);
         seaux.length = 0;
-        journal = [];
-        moments = [];
-        dernierJuge = 0;
-        debutLive = null;
+        if (reprise) seaux.push(...reprise.seaux);
+        journal = reprise ? reprise.journal : [];
+        dernierJuge = reprise ? reprise.dernierJuge : 0;
+        debutLive = reprise ? reprise.debutLive : null;
         debutLiveLuA = 0;
+        versionJournal++;
+        moments = journal.map(vueMoment);
     });
 
     const emoteDominante = (nbSeaux) => {
@@ -3811,7 +3850,7 @@
     };
 
     /** Barres de messages par minute ; les moments forts ressortent dans la couleur d'alerte. */
-    const dessinerPouls = (canevas, serie, { marquer = true } = {}) => {
+    const dessinerPouls = (canevas, serie) => {
         const dpr = window.devicePixelRatio || 1;
         const largeur = Math.max(10, canevas.clientWidth || Number(canevas.getAttribute('width')) || 60);
         const hauteur = Math.max(10, canevas.clientHeight || Number(canevas.getAttribute('height')) || 18);
@@ -3830,7 +3869,7 @@
         const alerte = style.getPropertyValue('--alerte').trim() || '#eb0400';
         const max = Math.max(1, ...serie.map((s) => s.n));
         const pas = largeur / serie.length;
-        const dansMoment = (t) => marquer && moments.some((m) => t >= m.ts && t < m.fin);
+        const dansMoment = (t) => moments.some((m) => t >= m.ts && t < m.fin);
         serie.forEach((s, i) => {
             const hBarre = Math.max(s.n ? 1 : 0, (s.n / max) * (hauteur - 2));
             x.fillStyle = dansMoment(s.debut) ? alerte : couleur;
@@ -3841,7 +3880,9 @@
     vuesPanneau.pouls = {
         construire(vue) {
             const etat = h('div', { class: 'etat' });
-            const chiffres = h('p', { class: 'chiffres', 'aria-live': 'polite' });
+            // Pas d'aria-live : ce compteur change chaque seconde dès que le chat vit, un
+            // lecteur d'écran l'annoncerait en boucle. Il se lit à la demande.
+            const chiffres = h('p', { class: 'chiffres' });
             const canevas = h('canvas', { class: 'graphe', height: '120', role: 'img', 'aria-label': 'Messages par minute pendant la session' });
             const legende = h('p', { class: 'aide' });
             const liste = h('ol', { class: 'moments' });
@@ -3872,12 +3913,23 @@
                 activer.addEventListener('click', () => { changerReglage('pouls.enabled', true); vuesPanneau.pouls.montrer(vue); });
                 c.etat.append(h('p', {}, 'Le pouls est désactivé : rien n\'est mesuré.'), activer);
             }
+            // Rafraîchie chaque seconde, onglet ouvert : rien n'est réécrit qui n'a pas changé.
+            // Une liste refaite sous ses yeux fait perdre sa place au lecteur d'écran.
+            const ecrire = (el, texte) => { if (el.textContent !== texte) el.textContent = texte; };
             const minute = Math.round(debit(60) * 60);
             const emote = emoteDominante(6);
-            c.chiffres.textContent = `${nombreFr(minute)} messages sur la dernière minute${emote ? ` · emote du moment : ${emote}` : ''}`;
-            dessinerPouls(c.canevas, seaux);
+            ecrire(c.chiffres, `${pluriel(minute, 'message', 'messages')} sur la dernière minute${emote ? ` · emote du moment : ${emote}` : ''}`);
+            const dernier = seaux[seaux.length - 1];
+            const empreinte = `${seaux.length}:${dernier ? `${dernier.debut}:${dernier.n}` : ''}:${versionJournal}`;
+            if (c.empreinte !== empreinte) {
+                c.empreinte = empreinte;
+                dessinerPouls(c.canevas, seaux);
+            }
             const debut = seaux[0];
-            c.legende.textContent = debut ? `Depuis ${heureCourte(debut.debut)} · un trait = 10 s · en rouge : moments forts` : 'Pas encore de mesure.';
+            ecrire(c.legende, debut ? `Depuis ${heureCourte(debut.debut)} · un trait = 10 s · en rouge : moments forts` : 'Pas encore de mesure.');
+            const cleListe = `${versionJournal}:${debutLive}`;
+            if (c.cleListe === cleListe) return;
+            c.cleListe = cleListe;
             c.liste.replaceChildren(...(moments.length ? [...moments].reverse().map((m) => h('li', {},
                 h('time', {}, etiquetteMoment(m)), h('strong', {}, `${nombreFr(m.parMinute)} msg/min`),
                 h('span', { class: 'aide' }, ` (normale ${nombreFr(m.base)})`),
@@ -3890,28 +3942,23 @@
     });
 
     // =========================================================================
-    // PASTILLE, BOUTON ET RACCOURCI
-    // La pastille, en haut à droite du chat, signale une rafale en cours ; le pouls se lit
-    // dans le panneau. Le bouton s'insère à côté de l'engrenage des réglages du chat ;
-    // s'il n'est pas là, Alt+Maj+B et __BTC.reglages.ouvrir() ouvrent toujours le panneau.
+    // BOUTON, INDICATEUR DE RAFALE ET RACCOURCI
+    // Le bouton s'insère à côté de l'engrenage des réglages du chat ; s'il n'est pas là,
+    // Alt+Maj+B et __BTC.reglages.ouvrir() ouvrent toujours le panneau. Une rafale en cours
+    // se signale sur ce bouton (un point, le débit en infobulle) : rien n'est posé sur le
+    // chat, dont le haut appartient aux bandeaux de Twitch.
     // =========================================================================
-    const majPastille = () => {
+    const TITRE_BOUTON = 'BetterTwitchChat (Alt+Maj+B)';
+    const majIndicateurRafale = () => {
+        if (!boutonPanneau) return;
         const rafale = CONFIG.rafale.enabled && CONFIG.rafale.indicateur && rafaleActive;
-        if (!rafale) {
-            if (ui && ui.pastille) ui.pastille.hidden = true;
-            return;
-        }
-        installerInterface();
-        if (!ui.pastille) {
-            ui.pastille = h('button', { type: 'button', class: 'pastille rafale', hidden: true }, h('span', { class: 'valeur' }));
-            ui.pastille.addEventListener('click', () => basculerPanneau('reglages'));
-            ui.couche.append(ui.pastille);
-        }
-        const p = ui.pastille;
-        p.hidden = false;
+        boutonPanneau.classList.toggle('btc-bouton--rafale', rafale);
         const parSeconde = Math.round(debit(5));
-        p.querySelector('.valeur').textContent = `Rafale · ${parSeconde} msg/s`;
-        p.setAttribute('aria-label', `Rafale en cours, ${parSeconde} messages par seconde. Ouvrir les réglages.`);
+        const titre = rafale ? `Rafale en cours · ${parSeconde} msg/s — ${TITRE_BOUTON}` : TITRE_BOUTON;
+        const etiquette = rafale ? `Réglages de BetterTwitchChat. Rafale en cours, ${parSeconde} messages par seconde.`
+            : 'Réglages de BetterTwitchChat';
+        if (boutonPanneau.title !== titre) boutonPanneau.title = titre;
+        if (boutonPanneau.getAttribute('aria-label') !== etiquette) boutonPanneau.setAttribute('aria-label', etiquette);
     };
 
     /** Trois curseurs, dessinés sur la grille de 24 des icônes de Twitch. */
@@ -3943,14 +3990,17 @@
      * mêmes classes, donc même taille, même alignement, même survol et même thème, sans
      * écrire aucun nom de classe haché. Ses attributs data-*, aria-* et id sont retirés : le
      * code de Twitch, et le nôtre, cherchent l'engrenage par data-a-target, et ne doivent pas
-     * tomber sur la copie. Si l'engrenage n'a pas d'icône à remplacer, le bouton prend le
-     * style de repli (btc-bouton--seul).
+     * tomber sur la copie. Ses états aussi (disabled, tabindex) : un engrenage désactivé un
+     * instant donnerait sinon un bouton désactivé jusqu'à sa prochaine reconstruction. Si
+     * l'engrenage n'a pas d'icône à remplacer, le bouton prend le style de repli
+     * (btc-bouton--seul).
      */
+    const ATTRIBUTS_RETIRES = new Set(['id', 'disabled', 'tabindex']);
     const creerBouton = (ancre) => {
         const b = ancre.cloneNode(true);
         for (const el of [b, ...b.querySelectorAll('*')]) {
             for (const a of [...el.attributes]) {
-                if (a.name === 'id' || a.name.startsWith('data-') || a.name.startsWith('aria-')) el.removeAttribute(a.name);
+                if (ATTRIBUTS_RETIRES.has(a.name) || a.name.startsWith('data-') || a.name.startsWith('aria-')) el.removeAttribute(a.name);
             }
         }
         const icone = b.querySelector('svg');
@@ -3963,9 +4013,11 @@
         b.classList.add('btc-bouton');
         if (b.tagName === 'BUTTON') b.type = 'button';
         b.setAttribute('aria-label', 'Réglages de BetterTwitchChat');
-        b.title = 'BetterTwitchChat (Alt+Maj+B)';
+        b.title = TITRE_BOUTON;
         b.dataset.btcModele = ancre.className;
-        b.addEventListener('click', (e) => { e.preventDefault(); basculerPanneau(); });
+        // Le clic s'arrête au bouton : React le redistribuerait sinon aux gestionnaires que
+        // Twitch a posés sur les conteneurs de la barre de saisie.
+        b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); basculerPanneau(); });
         return b;
     };
 
@@ -3974,11 +4026,15 @@
         if (!ancre || !ancre.parentElement) return;
         // L'engrenage a changé de classes (thème, nouvelle version de Twitch) : la copie suit.
         if (boutonPanneau && boutonPanneau.dataset.btcModele !== ancre.className) {
+            log('bouton du panneau refait : classes de l\'engrenage changées', ancre.className);
             boutonPanneau.remove();
             boutonPanneau = null;
         }
         if (boutonPanneau && boutonPanneau.isConnected && boutonPanneau.nextElementSibling === ancre) return;
-        if (!boutonPanneau) boutonPanneau = creerBouton(ancre);
+        if (!boutonPanneau) {
+            boutonPanneau = creerBouton(ancre);
+            majIndicateurRafale();
+        }
         ancre.parentElement.insertBefore(boutonPanneau, ancre);
     };
 
@@ -3992,9 +4048,10 @@
 
     window.addEventListener('keydown', (e) => {
         if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyB') {
-            // Dans un champ de saisie, la combinaison tape un caractère sur macOS
-            // (Option+Maj+B) : on la laisse passer.
-            if (dansUnChamp(e)) return;
+            // Sous macOS, Option+Maj+B tape un caractère (« ı ») : dans un champ, on le laisse
+            // passer. Sous Windows et Linux, la combinaison ne tape rien (e.key vaut « B ») et
+            // ouvre le panneau, y compris depuis la saisie du chat, où l'on est le plus souvent.
+            if (dansUnChamp(e) && e.key.toLowerCase() !== 'b') return;
             e.preventDefault();
             basculerPanneau();
         } else if (e.key === 'Escape' && panneauOuvert()) {
@@ -4006,12 +4063,12 @@
 
     crochets.tic.push(() => {
         assurerBouton();
-        majPastille();
+        majIndicateurRafale();
         // Recalage de secours (déplacement sans changement de taille) ; le ResizeObserver
         // et l'événement resize font l'essentiel.
         if (coucheOccupee()) placerCouche();
     });
-    crochets.reglages.push(() => majPastille());
+    crochets.reglages.push(() => majIndicateurRafale());
 
     // =========================================================================
     // DÉMARRAGE

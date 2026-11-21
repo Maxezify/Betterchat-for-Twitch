@@ -29,7 +29,9 @@ noms n'ont pas changé : il remplace une installation faite depuis l'ancien dép
 ## Panneau et fonctions
 
 Le panneau s'ouvre avec le bouton ajouté à côté de l'engrenage des réglages du chat, ou avec
-**Alt+Maj+B** (Échap le ferme). Il a deux onglets : *Réglages* et *Pouls du chat*.
+**Alt+Maj+B**, y compris depuis la zone de saisie du chat. Échap le ferme et rend la main là où
+elle était. Sous macOS, Option+Maj+B tape un caractère dans un champ de saisie : il y est laissé,
+le bouton ouvre alors le panneau. Le panneau a deux onglets : *Réglages* et *Pouls du chat*.
 Un réglage changé s'applique tout de suite, sans recharger la page, messages déjà affichés
 compris, et il revient en arrière aussi bien. Seule exception : le regroupement des gifts,
 réactivé, ne vaut que pour les gifts suivants. Le réglage reste enregistré dans ce navigateur
@@ -39,14 +41,15 @@ confirmation.
 
 | Fonction | Par défaut | Ce qu'elle fait |
 |---|---|---|
-| Densité adaptative | activée | Quand le chat dépasse 8 messages par seconde (mesurés sur 5 s), il se resserre : badges secondaires masqués (modo, VIP, diffuseur et staff restent), notices et citations sur une ligne, interligne réduit, pastille « Rafale » en haut du chat. Il revient à la normale sous 5 messages par seconde, mesurés sur 10 s, et pas avant 10 s. Seuils et effets réglables un par un. |
+| Densité adaptative | activée | Quand le chat dépasse 8 messages par seconde (mesurés sur 5 s), il se resserre : badges secondaires masqués (modo, VIP, diffuseur et staff restent), notices et citations sur une ligne, interligne réduit, point rouge sur le bouton du panneau (débit en infobulle). Il revient à la normale sous 5 messages par seconde, mesurés sur 10 s, et pas avant 10 s. Seuils et effets réglables un par un. |
 | Fil de conversation | activée | Au survol d'une réponse, le message d'origine et les autres réponses au même message sont encadrés, le reste du chat s'estompe. |
-| Pendant ton absence | activée | Au retour sur l'onglet après au moins 60 s : nombre de messages et pic de cadence, abonnements, gifts, raids, mentions (« @pseudo » ou réponse à l'un de tes messages, avec « Aller au message »), emotes les plus utilisées, personnes les plus actives. La carte se ferme seule au bout d'une minute. |
+| Pendant ton absence | activée | Au retour sur l'onglet après au moins 60 s : nombre de messages et pic de cadence, abonnements, gifts, raids, mentions (« @pseudo » ou réponse à l'un de tes messages, avec « Aller au message »), emotes les plus utilisées, personnes les plus actives. La carte s'affiche en bas du chat et se ferme seule au bout d'une minute. Si la chaîne a changé pendant l'absence (raid), elle le dit et ne résume que la nouvelle. |
 | Pouls du chat | **coupée** | Cadence par tranche de 10 s, graphique des deux dernières heures et moments forts de toute la session (pics par rapport à la normale du chat), avec l'heure du live quand Twitch l'affiche, l'emote dominante et un message représentatif. La liste se copie pour préparer des clips. Tout se lit dans le panneau : rien ne s'affiche dans le chat. |
 
 Les lignes que Twitch rejoue à l'ouverture du chat ne comptent pas comme des arrivées : la
-cadence, le résumé et le pouls ne prennent en compte que le direct. Changer de chaîne remet
-la cadence et le pouls à zéro.
+cadence, le résumé et le pouls ne prennent en compte que le direct. Changer de chaîne remet la
+cadence à zéro. Le pouls de chaque chaîne est gardé le temps de la page, pour les 5 dernières
+chaînes : un aller-retour ne perd rien.
 
 L'historique long des v15.26.0 et v15.26.1 a été retiré. La base qu'il avait pu créer dans le
 navigateur (IndexedDB, `btc-historique`) est effacée au premier lancement de la v15.26.2.
@@ -61,7 +64,7 @@ navigateur (IndexedDB, `btc-historique`) est effacée au premier lancement de la
 ## Livraison en prod
 
 La source commentée vit sur `dev`. `prod` reçoit le même code, sans commentaires ni espaces
-(environ 93 Ko au lieu de 202 Ko en v15.26.2) : l'en-tête `==UserScript==` est gardé tel quel, les noms
+(environ 94 Ko au lieu de 206 Ko en v15.26.3) : l'en-tête `==UserScript==` est gardé tel quel, les noms
 ne sont pas raccourcis, le code n'est pas réécrit. Le banc vérifie que cette version passe les
 mêmes cas que la source et produit exactement la même feuille de style.
 

@@ -14,6 +14,27 @@ GitHub. Les identifiants sont propres à cet audit.
 
 ---
 
+## 0. Suivi des corrections — v15.26.3 (branche `dev`)
+
+| Statut | Points |
+|---|---|
+| Corrigé | 20 : B1-B8, R1, R3, P1, M1-M4, D1, T1-T3, A1 |
+| Conservé | 2 : M5 (`confirmerEnDeuxTemps` gardée pour les prochaines actions à confirmer), T4 (seul un essai réel valide le rendu de Twitch) |
+| À vérifier | 1 : R2 (reconstructions du bouton désormais notées dans le journal de débogage) |
+| Positif | 1 : S1 |
+
+Le détail est dans [`tests/suivi-15.26.2.json`](tests/suivi-15.26.2.json). `npm run audit:reproduction`
+ne reproduit plus aucun des 7 défauts sur la v15.26.3, et les reproduit tous sur la v15.26.2.
+Le banc compte 10 cas de plus (62B1 à 62B8, 62R1, 62M ; 94 au total) et 2 cas revus (F3a,
+26R4). Sur la v15.26.2, 11 de ces 12 cas échouent. Le dernier, 26R4, vérifie que le caractère
+tapé sous macOS reste au champ, ce que la v15.26.2 faisait déjà.
+
+Pour B6, la proposition de l'audit a été suivie : la rafale se signale par un point rouge sur
+le bouton du panneau, avec le débit en infobulle, et la carte d'absence s'affiche en bas du
+chat.
+
+---
+
 ## 1. En bref
 
 Les corrections de la v15.26.1 et les changements de la v15.26.2 tiennent : à la relecture,

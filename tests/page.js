@@ -40,7 +40,7 @@ const pageHtml = ({ theme = 'sombre', scrollerParent = false, dureeLive = '' } =
 <style>${theme === 'clair' ? STYLE_CLAIR : STYLE_SOMBRE}</style></head><body>
 ${dureeLive ? `<div class="channel-info"><span class="live-time">${dureeLive}</span></div>` : ''}
 <section class="chat-room" data-test-selector="chat-room-component-layout">${zone}
- <textarea data-a-target="chat-input"></textarea>
+ <div class="chat-wysiwyg-input__editor" role="textbox" aria-multiline="true" data-a-target="chat-input" data-slate-editor="true" contenteditable="true" tabindex="0"><div data-slate-node="element"><span data-slate-node="text"><span data-slate-leaf="true" data-a-target="chat-input-text">bonjour</span></span></div></div>
  <div class="chat-input__buttons"><div class="kFDiny"><div class="glFavL"><div class="InjectLayout-sc-1i43xsx-0 bohlnR"><div class="Layout-sc-1xcs6mc-0 dXmeTP">`
     + `<button class="ScCoreButton-sc-ocjdkq-0 eBQIRH ScButtonIcon-sc-9yap0r-0 jcYIUn" data-a-target="chat-settings" aria-label="Paramètres du chat">`
     + `<div class="ButtonIconFigure-sc-1emm8lf-0 jgYFuA"><div class="ScSvgWrapper-sc-wkgzod-0 cnGLHG tw-svg">`

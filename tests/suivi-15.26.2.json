@@ -7,7 +7,9 @@
   "statuts": {
     "ouvert": "constat relevé, pas encore traité",
     "corrigé": "corrigé et couvert par le banc",
-    "positif": "point fort à conserver"
+    "positif": "point fort à conserver",
+    "à vérifier": "à confirmer sur le DOM réel de Twitch",
+    "conservé": "gardé tel quel, avec sa justification"
   },
   "items": [
     {
@@ -16,8 +18,10 @@
       "categorie": "Bug",
       "titre": "Alt+Maj+B sans effet dans la zone de saisie du chat (Windows, Linux)",
       "preuve": "reproduction B1, contre-épreuve",
-      "statut": "ouvert",
-      "reproduction": "B1"
+      "statut": "corrigé",
+      "reproduction": "B1",
+      "note": "Le raccourci ne laisse passer que le caractère qu'Option+Maj+B tape sous macOS ; la touche « B » (Windows, Linux) ouvre le panneau depuis la saisie.",
+      "tests": "62B1, 26R4"
     },
     {
       "id": "B2",
@@ -25,8 +29,10 @@
       "categorie": "Bug",
       "titre": "Échap rend le focus au bouton du panneau, pas à la saisie",
       "preuve": "reproduction B2, contre-épreuve",
-      "statut": "ouvert",
-      "reproduction": "B2"
+      "statut": "corrigé",
+      "reproduction": "B2",
+      "note": "Le focus revient à l'élément qui l'avait à l'ouverture, sinon au bouton.",
+      "tests": "62B2"
     },
     {
       "id": "B3",
@@ -34,8 +40,10 @@
       "categorie": "Bug",
       "titre": "Pouls remis à zéro au moindre passage sur une autre chaîne",
       "preuve": "reproduction B3",
-      "statut": "ouvert",
-      "reproduction": "B3"
+      "statut": "corrigé",
+      "reproduction": "B3",
+      "note": "Une session de pouls par chaîne, gardée le temps de la page pour les 5 dernières.",
+      "tests": "62B3"
     },
     {
       "id": "B4",
@@ -43,8 +51,10 @@
       "categorie": "Bug",
       "titre": "Résumé d'absence qui mélange deux chaînes",
       "preuve": "reproduction B4",
-      "statut": "ouvert",
-      "reproduction": "B4"
+      "statut": "corrigé",
+      "reproduction": "B4",
+      "note": "Le décompte repart pour la nouvelle chaîne ; la carte explique le changement.",
+      "tests": "62B4"
     },
     {
       "id": "B5",
@@ -52,8 +62,10 @@
       "categorie": "Accessibilité",
       "titre": "Compteur du pouls en aria-live réécrit chaque seconde",
       "preuve": "reproduction B5, contre-épreuve",
-      "statut": "ouvert",
-      "reproduction": "B5"
+      "statut": "corrigé",
+      "reproduction": "B5",
+      "note": "Compteur sans aria-live, texte réécrit seulement s'il change.",
+      "tests": "62B5"
     },
     {
       "id": "B6",
@@ -61,8 +73,10 @@
       "categorie": "Ergonomie",
       "titre": "Pastille de rafale et carte d'absence sur les bandeaux de Twitch",
       "preuve": "reproduction B6, capture",
-      "statut": "ouvert",
-      "reproduction": "B6"
+      "statut": "corrigé",
+      "reproduction": "B6",
+      "note": "Rafale signalée par un point rouge sur le bouton du panneau ; carte d'absence en bas du chat. Plus rien en haut du chat.",
+      "tests": "62B6, F3a"
     },
     {
       "id": "B7",
@@ -70,8 +84,10 @@
       "categorie": "Robustesse",
       "titre": "Le clic sur le bouton remonte aux conteneurs de Twitch",
       "preuve": "reproduction B7, contre-épreuve",
-      "statut": "ouvert",
-      "reproduction": "B7"
+      "statut": "corrigé",
+      "reproduction": "B7",
+      "note": "stopPropagation dans le gestionnaire de clic.",
+      "tests": "62B7"
     },
     {
       "id": "B8",
@@ -79,7 +95,9 @@
       "categorie": "Texte",
       "titre": "« 1 messages sur la dernière minute »",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "pluriel() : « 1 message ».",
+      "tests": "62B8"
     },
     {
       "id": "R1",
@@ -87,7 +105,9 @@
       "categorie": "Robustesse",
       "titre": "La copie de l'engrenage hérite de ses attributs d'état (disabled, tabindex…)",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "disabled et tabindex retirés de la copie, avec les data-*, aria-* et id.",
+      "tests": "62R1"
     },
     {
       "id": "R2",
@@ -95,7 +115,8 @@
       "categorie": "Robustesse",
       "titre": "Copie reconstruite à chaque changement de classes de l'engrenage",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "à vérifier",
+      "note": "Chaque reconstruction est notée dans le journal de débogage (CONFIG.debug) : à observer sur Twitch."
     },
     {
       "id": "R3",
@@ -103,7 +124,8 @@
       "categorie": "Maintenance",
       "titre": "Effacement de l'ancien historique lancé à chaque chargement, sans échéance",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Échéance écrite dans le commentaire : à retirer en v15.28."
     },
     {
       "id": "P1",
@@ -111,7 +133,9 @@
       "categorie": "Performance",
       "titre": "Vue du pouls reconstruite chaque seconde même inchangée",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Liste et graphe refaits seulement si le journal ou les tranches changent.",
+      "tests": "62B5"
     },
     {
       "id": "M1",
@@ -119,7 +143,8 @@
       "categorie": "Code mort",
       "titre": "Règle input[type=\"search\"] du panneau",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "tests": "62M"
     },
     {
       "id": "M2",
@@ -127,7 +152,8 @@
       "categorie": "Code mort",
       "titre": "Option marquer de dessinerPouls, toujours vraie",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "tests": "62M"
     },
     {
       "id": "M3",
@@ -135,7 +161,8 @@
       "categorie": "Code mort",
       "titre": "Global IDBKeyRange déclaré dans ESLint",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Global retiré de eslint.config.js."
     },
     {
       "id": "M4",
@@ -143,7 +170,9 @@
       "categorie": "Code mort",
       "titre": "Mise en page de la pastille et de la carte pensée pour l'ancienne pastille",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Styles de la pastille retirés, carte ancrée en bas.",
+      "tests": "62M, 62B6"
     },
     {
       "id": "M5",
@@ -151,7 +180,8 @@
       "categorie": "Code mort",
       "titre": "confirmerEnDeuxTemps n'a plus qu'un usage",
       "preuve": "grep",
-      "statut": "ouvert"
+      "statut": "conservé",
+      "note": "Gardée : une seule action à confirmer aujourd'hui, mais la fonction reste le bon outil pour les suivantes."
     },
     {
       "id": "D1",
@@ -159,7 +189,8 @@
       "categorie": "Documentation",
       "titre": "README : Alt+Maj+B présenté sans réserve",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "README : raccourci depuis la saisie, cas de macOS, Échap."
     },
     {
       "id": "T1",
@@ -167,7 +198,9 @@
       "categorie": "Tests",
       "titre": "Le cas 26R4 impose le comportement fautif de B1",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "26R4 vérifie le cas macOS (« ı » laissé au champ) ; 62B1 le cas Windows/Linux.",
+      "tests": "26R4, 62B1"
     },
     {
       "id": "T2",
@@ -175,7 +208,8 @@
       "categorie": "Tests",
       "titre": "Page imitée avec un textarea au lieu de l'éditeur de Twitch",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "La page imitée a un éditeur contenteditable (structure de Slate) comme zone de saisie."
     },
     {
       "id": "T3",
@@ -183,7 +217,8 @@
       "categorie": "Tests",
       "titre": "Aucun cas pour B2 à B7",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "62B1 à 62B8, 62R1 et 62M ajoutés ; la reproduction ne reproduit plus rien."
     },
     {
       "id": "T4",
@@ -191,7 +226,8 @@
       "categorie": "Tests",
       "titre": "N2 ne vaut que pour la maquette des boutons de Twitch",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "conservé",
+      "note": "Inchangé : la copie garantit l'alignement par construction ; seul un essai réel valide le rendu de Twitch."
     },
     {
       "id": "A1",
@@ -199,7 +235,9 @@
       "categorie": "Accessibilité",
       "titre": "Panneau : liste des moments reconstruite sous les yeux du lecteur d'écran",
       "preuve": "lecture",
-      "statut": "ouvert"
+      "statut": "corrigé",
+      "note": "Liste des moments refaite seulement quand elle change.",
+      "tests": "62B5"
     },
     {
       "id": "S1",
@@ -209,5 +247,6 @@
       "preuve": "lecture",
       "statut": "positif"
     }
-  ]
+  ],
+  "corrige_en": "15.26.3"
 }

@@ -562,9 +562,10 @@ dyn('F3a', ['F3'], 'Rafale : entrée au-dessus du seuil, badges secondaires masq
         await mk.sleep(1300);
         const actif = document.documentElement.classList.contains('btc-rafale');
         const vu = (w) => getComputedStyle(w.querySelector('.chat-badge')).display !== 'none';
-        const pastille = (mk.ui() && mk.ui().querySelector('.pastille .valeur') || {}).textContent || '';
-        return { ok: actif && vu(mod) && !vu(abo) && /Rafale/.test(pastille),
-            details: `rafale=${actif}, badge modo visible=${vu(mod)}, badge abonné visible=${vu(abo)}, pastille="${pastille}"` };
+        const bouton = document.querySelector('.btc-bouton');
+        const signal = !!bouton && bouton.classList.contains('btc-bouton--rafale') && /Rafale en cours · \d+ msg\/s/.test(bouton.title);
+        return { ok: actif && vu(mod) && !vu(abo) && signal,
+            details: `rafale=${actif}, badge modo visible=${vu(mod)}, badge abonné visible=${vu(abo)}, bouton="${bouton && bouton.title}"` };
     })));
 
 dyn('F3b', ['F3'], 'Rafale : sortie après l\'accalmie', ({ ouvrir }) =>
@@ -917,12 +918,13 @@ dyn('26R1', ['15.26 R1'], 'Emotes comptées même encore écrites en texte (7TV 
         return { ok: m.emotes.length === 2 && m.emotes.every((e) => e === 'catJAM'), details: `emotes lues : ${JSON.stringify(m.emotes)}` };
     })));
 
-dyn('26R4', ['15.26 R4'], 'Raccourcis : Alt+Maj+B laissé aux champs de saisie, Échap gardé pour le panneau', ({ ouvrir }) =>
+dyn('26R4', ['15.26 R4', '15.26.2 T1'], 'Raccourcis : le caractère d\'Option+Maj+B (macOS) laissé au champ, Échap gardé pour le panneau', ({ ouvrir }) =>
     ouvrir((page) => page.evaluate(async () => {
         const mk = window.__mk;
         const ouvert = () => !!mk.ui() && !!mk.ui().querySelector('.panneau') && !mk.ui().querySelector('.panneau').hidden;
-        const champ = document.querySelector('[data-a-target="chat-input"]');
-        const ev = new KeyboardEvent('keydown', { key: 'B', code: 'KeyB', altKey: true, shiftKey: true, bubbles: true, cancelable: true });
+        const champ = document.querySelector('[data-a-target="chat-input"] [data-slate-leaf]');
+        // Sous macOS, Option+Maj+B tape « ı » : le champ doit le recevoir.
+        const ev = new KeyboardEvent('keydown', { key: 'ı', code: 'KeyB', altKey: true, shiftKey: true, bubbles: true, cancelable: true });
         champ.dispatchEvent(ev);
         const dansChamp = ouvert() || ev.defaultPrevented;
         window.__BTC.reglages.ouvrir();
@@ -930,7 +932,7 @@ dyn('26R4', ['15.26 R4'], 'Raccourcis : Alt+Maj+B laissé aux champs de saisie, 
         document.addEventListener('keydown', () => { vuParLaPage = true; });
         document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
         return { ok: !dansChamp && !ouvert() && !vuParLaPage,
-            details: `raccourci intercepté dans le champ=${dansChamp}, Échap ferme=${!ouvert()}, Échap vu aussi par la page=${vuParLaPage}` };
+            details: `caractère de macOS intercepté dans le champ=${dansChamp}, Échap ferme=${!ouvert()}, Échap vu aussi par la page=${vuParLaPage}` };
     })));
 
 dyn('26R5', ['15.26 R5'], 'Absence : la carte se ferme seule au bout d\'une minute', ({ ouvrir }) =>
@@ -1019,6 +1021,153 @@ dyn('26T3', ['15.26 T3'], 'Panneau : couleurs du thème clair de Twitch', ({ ouv
 stat('26M', ['15.26 M1', '15.26 M2', '15.26 M3', '15.26 M4', '15.26 M5', '15.26 Q2'], 'Code mort de la v15.26 retiré, aucun caractère invisible dans le code',
     verifAbsence(['quantite', 'element: entree, notice,', 'ui = { hote', "genre: info.genre || ''", 'parent: info.parentLogin', 'mention: !!info.mentionneMoi',
         "genre: '', emotes", "emotes: [], texte: ''", /[̀-ͯ]/]));
+
+// =============================================================================
+// Audit de la v15.26.2 (AUDIT-15.26.2.md) : un cas par défaut corrigé, préfixé de 62.
+// =============================================================================
+const panneauOuvert = () => {
+    const ui = window.__mk.ui();
+    return !!ui && !!ui.querySelector('.panneau') && !ui.querySelector('.panneau').hidden;
+};
+
+dyn('62B1', ['15.26.2 B1'], 'Alt+Maj+B ouvre le panneau depuis la saisie du chat (Windows, Linux)', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async (ouvertSrc) => {
+        const ouvert = (0, eval)(`(${ouvertSrc})`);
+        await window.__mk.sleep(1200);
+        const saisie = document.querySelector('[data-a-target="chat-input"]');
+        saisie.focus();
+        const ev = new KeyboardEvent('keydown', { key: 'B', code: 'KeyB', altKey: true, shiftKey: true, bubbles: true, cancelable: true });
+        saisie.querySelector('[data-slate-leaf]').dispatchEvent(ev);
+        return { ok: ouvert() && ev.defaultPrevented, details: `panneau ouvert depuis la saisie=${ouvert()}, touche consommée=${ev.defaultPrevented}` };
+    }, panneauOuvert.toString())));
+
+dyn('62B2', ['15.26.2 B2'], 'Échap rend le focus à la saisie du chat', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        await window.__mk.sleep(1200);
+        const saisie = document.querySelector('[data-a-target="chat-input"]');
+        saisie.focus();
+        window.__BTC.reglages.ouvrir();
+        const surPanneau = document.activeElement !== saisie;
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+        const retour = document.activeElement === saisie;
+        // Ouvert depuis le bouton, le focus revient au bouton.
+        const bouton = document.querySelector('.btc-bouton');
+        bouton.focus(); bouton.click();
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+        const surBouton = document.activeElement === bouton;
+        return { ok: surPanneau && retour && surBouton, details: `focus parti dans le panneau=${surPanneau}, revenu à la saisie=${retour}, ouvert par le bouton : revenu au bouton=${surBouton}` };
+    })));
+
+dyn('62B3', ['15.26.2 B3'], 'Pouls : un aller-retour sur une autre chaîne ne perd rien, chaque chaîne a sa mesure', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root(); const B = window.__BTC;
+        const total = () => B.pouls.seaux.reduce((n, s) => n + s.n, 0);
+        B.interne.terminerStabilisation();
+        for (let i = 0; i < 12; i++) root.appendChild(mk.message({ user: 'u' + i, text: 'chaîne A ' + i }));
+        await mk.frames(4); await mk.sleep(1100);
+        const avant = total();
+        history.pushState({}, '', '/autrechaine'); await mk.sleep(1300);
+        B.interne.terminerStabilisation();
+        for (let i = 0; i < 3; i++) root.appendChild(mk.message({ user: 'v' + i, text: 'chaîne B ' + i }));
+        await mk.frames(4); await mk.sleep(200);
+        const surB = total();
+        history.pushState({}, '', '/testchannel'); await mk.sleep(1300);
+        const auRetour = total();
+        return { ok: avant === 12 && surB === 3 && auRetour === 12,
+            details: `testchannel : ${avant} messages ; autre chaîne : ${surB} ; de retour sur testchannel : ${auRetour}` };
+    }), AVEC({ pouls: { enabled: true } })));
+
+dyn('62B4', ['15.26.2 B4'], 'Absence : changement de chaîne onglet masqué, le résumé ne porte que sur la nouvelle', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root(); const B = window.__BTC;
+        B.interne.terminerStabilisation();
+        B.config.absence.minimumS = 0;
+        mk.masquer(true);
+        for (let i = 0; i < 5; i++) root.appendChild(mk.message({ user: 'a' + i, text: 'sur la chaîne A' }));
+        await mk.sleep(400);
+        history.pushState({}, '', '/chaineb'); await mk.sleep(1300);
+        B.interne.terminerStabilisation();
+        for (let i = 0; i < 4; i++) root.appendChild(mk.message({ user: 'b' + i, text: 'sur la chaîne B' }));
+        await mk.sleep(400);
+        mk.masquer(false); await mk.frames(2);
+        const c = mk.ui() && mk.ui().querySelector('.carte.absence');
+        const n = c ? Number(c.dataset.messages) : -1;
+        const depart = c ? c.dataset.chaineDepart : '';
+        const explique = !!c && /testchannel à chaineb/.test(c.textContent);
+        return { ok: n === 4 && depart === 'testchannel' && explique, details: `messages résumés : ${n} (attendu 4), chaîne de départ : ${depart}, changement expliqué=${explique}` };
+    })));
+
+dyn('62B5', ['15.26.2 B5', '15.26.2 P1', '15.26.2 A1'], 'Pouls : rien n\'est réécrit chaque seconde, ni compteur ni liste', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        window.__BTC.reglages.changer('pouls.enabled', true);
+        window.__BTC.reglages.ouvrir('pouls');
+        const vue = window.__mk.ui().querySelector('[data-vue="pouls"]');
+        await window.__mk.sleep(1100);
+        let ecritures = 0;
+        new MutationObserver((m) => { ecritures += m.length; }).observe(vue.querySelector('.chiffres').parentElement, { childList: true, characterData: true, subtree: true });
+        const live = vue.querySelectorAll('[aria-live]').length;
+        await window.__mk.sleep(3200);
+        return { ok: ecritures === 0 && live === 0, details: `écritures en 3 s sans changement : ${ecritures}, régions aria-live dans la vue : ${live}` };
+    })));
+
+dyn('62B6', ['15.26.2 B6', '15.26.2 M4'], 'Rafale signalée sur le bouton, rien sur le chat ; carte d\'absence en bas du chat', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const root = mk.root(); const B = window.__BTC;
+        B.interne.terminerStabilisation();
+        B.reglages.changer('rafale.entree', 3);
+        B.config.rafale.fenetreS = 1;
+        B.config.absence.minimumS = 0;
+        for (let i = 0; i < 20; i++) root.appendChild(mk.message({ text: `m${i}` }));
+        await mk.sleep(1300);
+        const ui = mk.ui();
+        const surLeChat = ui ? [...ui.querySelectorAll('.couche > *')].filter((e) => !e.hidden).length : 0;
+        const bouton = document.querySelector('.btc-bouton');
+        const point = bouton && getComputedStyle(bouton, '::after').content !== 'none';
+        mk.masquer(true);
+        root.appendChild(mk.message({ text: 'pendant' }));
+        await mk.sleep(300);
+        mk.masquer(false); await mk.frames(2);
+        const carte = mk.ui().querySelector('.carte.absence');
+        const sc = document.querySelector('[data-a-target="chat-scroller"]').getBoundingClientRect();
+        const r = carte ? carte.getBoundingClientRect() : null;
+        const enBas = !!r && Math.abs(sc.bottom - r.bottom) <= 12 && r.top > sc.top + 40;
+        return { ok: surLeChat === 0 && point && enBas,
+            details: `éléments posés sur le chat pendant la rafale : ${surLeChat}, point sur le bouton=${point}, carte d'absence en bas=${enBas}` };
+    })));
+
+dyn('62B7', ['15.26.2 B7'], 'Le clic sur le bouton du panneau s\'arrête au bouton', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        await window.__mk.sleep(1200);
+        const bouton = document.querySelector('.btc-bouton');
+        let recu = false;
+        bouton.parentElement.parentElement.addEventListener('click', () => { recu = true; });
+        bouton.click();
+        const ouvert = !window.__mk.ui().querySelector('.panneau').hidden;
+        return { ok: !recu && ouvert, details: `clic reçu par un conteneur=${recu}, panneau ouvert=${ouvert}` };
+    })));
+
+dyn('62B8', ['15.26.2 B8'], 'Pouls : « 1 message sur la dernière minute », au singulier', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        const mk = window.__mk; const B = window.__BTC;
+        B.interne.terminerStabilisation();
+        B.reglages.changer('pouls.enabled', true);
+        mk.root().appendChild(mk.message({ text: 'seul' })); await mk.frames(4);
+        B.reglages.ouvrir('pouls');
+        const texte = mk.ui().querySelector('[data-vue="pouls"] .chiffres').textContent;
+        return { ok: /^1 message sur la dernière minute/.test(texte), details: `« ${texte} »` };
+    })));
+
+dyn('62R1', ['15.26.2 R1'], 'Bouton du panneau utilisable même si l\'engrenage est désactivé', ({ ouvrir }) =>
+    ouvrir((page) => page.evaluate(async () => {
+        await window.__mk.sleep(1200);
+        const bouton = document.querySelector('.btc-bouton');
+        return { ok: !!bouton && !bouton.disabled && !bouton.hasAttribute('tabindex'), details: `désactivé=${bouton && bouton.disabled}, tabindex copié=${bouton && bouton.hasAttribute('tabindex')}` };
+    }), { before: () => {
+        const g = document.querySelector('[data-a-target="chat-settings"]');
+        g.setAttribute('disabled', ''); g.setAttribute('tabindex', '-1');
+    } }));
+
+stat('62M', ['15.26.2 M1', '15.26.2 M2', '15.26.2 M4'], 'Code mort de la v15.26.2 retiré', verifAbsence(['input[type="search"]', /\bmarquer\b/, 'ui.pastille', '.pastille {']));
 
 // =============================================================================
 // v15.26.2 : historique retiré, bouton du panneau calqué sur l'engrenage de Twitch.

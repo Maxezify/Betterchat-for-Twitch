@@ -6,7 +6,7 @@ const navigateur = Object.fromEntries([
     'window', 'document', 'console', 'location', 'history', 'navigator', 'performance',
     'Node', 'NodeFilter', 'MutationObserver', 'Event', 'getComputedStyle',
     'requestAnimationFrame', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
-    'GM_info', 'Element', 'localStorage', 'indexedDB', 'IDBKeyRange', 'structuredClone', 'ResizeObserver'
+    'GM_info', 'Element', 'localStorage', 'indexedDB', 'structuredClone', 'ResizeObserver'
 ].map((nom) => [nom, 'readonly']));
 
 module.exports = [
