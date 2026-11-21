@@ -68,7 +68,7 @@ navigateur (IndexedDB, `btc-historique`) est effacée au premier lancement de la
 ## Livraison en prod
 
 La source commentée vit sur `dev`. `prod` reçoit le même code, sans commentaires ni espaces
-(environ 94 Ko au lieu de 206 Ko en v15.26.3) : l'en-tête `==UserScript==` est gardé tel quel, les noms
+(environ 101 Ko au lieu de 221 Ko en v15.26.4) : l'en-tête `==UserScript==` est gardé tel quel, les noms
 ne sont pas raccourcis, le code n'est pas réécrit. Le banc vérifie que cette version passe les
 mêmes cas que la source et produit exactement la même feuille de style.
 
